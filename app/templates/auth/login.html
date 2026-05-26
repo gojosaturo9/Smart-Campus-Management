@@ -1,0 +1,39 @@
+{% extends "base_public.html" %}
+{% block title %}Login - Smart Campus{% endblock %}
+{% block content %}
+<main class="login-shell">
+  <section class="login-panel">
+    <div>
+      <p class="eyebrow">Unified Python Portal</p>
+      <h1>Smart Campus Management Platform</h1>
+      <p class="muted">Sign in with your campus account to enter the protected dashboard.</p>
+    </div>
+
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login" class="login-form">
+      <label>
+        Email
+        <input name="email" type="email" placeholder="admin@campus.local" autocomplete="username" required>
+      </label>
+
+      <label>
+        Password
+        <input name="password" type="password" placeholder="Admin@123" autocomplete="current-password" required>
+      </label>
+
+      <button type="submit">Enter Dashboard</button>
+    </form>
+
+    <div class="demo-box">
+      <strong>Demo accounts</strong>
+      <span>admin@campus.local / Admin@123</span>
+      <span>student@campus.local / Student@123</span>
+      <span>teacher@campus.local / Teacher@123</span>
+      <span>alumni@campus.local / Alumni@123</span>
+    </div>
+  </section>
+</main>
+{% endblock %}

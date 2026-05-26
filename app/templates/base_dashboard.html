@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Dashboard - Smart Campus{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+  </head>
+  <body class="app-body">
+    <aside class="sidebar">
+      <a class="brand" href="/{{ user.role }}/dashboard">
+        <span class="brand-mark">SC</span>
+        <span>
+          <strong>Smart Campus</strong>
+          <small>{{ role_labels[user.role] }}</small>
+        </span>
+      </a>
+
+      <nav class="nav-list">
+        {% for item in role_nav[user.role] %}
+          <a href="{{ item.endpoint }}">{{ item.label }}</a>
+        {% endfor %}
+      </nav>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">{{ role_labels[user.role] }} Portal</p>
+          <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+        </div>
+        <form method="post" action="/logout">
+          <button class="secondary-button" type="submit">Logout</button>
+        </form>
+      </header>
+
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>
