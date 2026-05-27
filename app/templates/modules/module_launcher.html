@@ -1,0 +1,62 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Module Launcher - Smart Campus{% endblock %}
+{% block page_heading %}Module Launcher{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-title">
+    <h2>Local Development Modules</h2>
+    <p>Start, stop, inspect health, and open logs for configured module servers.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Health</th>
+          <th>Process</th>
+          <th>Command</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for module in modules %}
+          {% set status = statuses[module.key] %}
+          <tr>
+            <td>
+              <strong>{{ module.name }}</strong><br>
+              <small>{{ module.stack }}</small>
+            </td>
+            <td>
+              <span class="status-badge {{ module.health }}">{{ module.health }}</span>
+            </td>
+            <td>
+              <span class="status-badge {{ status.state }}">{{ status.state }}</span><br>
+              <small>{{ status.detail }}</small>
+            </td>
+            <td>
+              {% if module.start_command %}
+                <code>{{ module.start_command }}</code>
+              {% else %}
+                <span class="muted">Not configured</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="table-actions">
+                <a class="secondary-link" href="/modules/{{ module.key }}">Details</a>
+                <form method="post" action="/modules/{{ module.key }}/start">
+                  <button type="submit">Start</button>
+                </form>
+                <form method="post" action="/modules/{{ module.key }}/stop">
+                  <button class="secondary-button" type="submit">Stop</button>
+                </form>
+                <a class="secondary-link" href="/modules/{{ module.key }}/logs">Logs</a>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Events - Smart Campus{% endblock %}
+{% block page_heading %}Events{% endblock %}
+{% block content %}
+{% if created %}
+  <div class="notice">{{ created }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert">{{ error }}</div>
+{% endif %}
+
+{% if user.role == "admin" %}
+<section class="panel">
+  <div class="section-title">
+    <h2>Create Event</h2>
+    <p>Add seminars, workshops, meetups, and campus events.</p>
+  </div>
+
+  <form class="event-form" method="post" action="/events">
+    <label>
+      Title
+      <input name="title" type="text" required>
+    </label>
+    <label>
+      Type
+      <input name="event_type" type="text" placeholder="Seminar, workshop, meetup">
+    </label>
+    <label>
+      Starts at
+      <input name="starts_at" type="datetime-local">
+    </label>
+    <label>
+      Ends at
+      <input name="ends_at" type="datetime-local">
+    </label>
+    <label>
+      Location
+      <input name="location" type="text">
+    </label>
+    <label class="wide-field">
+      Description
+      <input name="description" type="text">
+    </label>
+    <button type="submit">Create Event</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="section-title">
+    <h2>Campus Events</h2>
+    <p>Upcoming and recently created events from Supabase.</p>
+  </div>
+
+  <div class="event-list">
+    {% for event in events %}
+      <article class="event-item">
+        <div>
+          <span class="eyebrow">{{ event.event_type or "Campus" }}</span>
+          <h3>{{ event.title }}</h3>
+          <p>{{ event.description or "No description added." }}</p>
+          <small>
+            {{ event.starts_at or "Date not set" }}
+            {% if event.location %} · {{ event.location }}{% endif %}
+            · {{ registration_counts.get(event.id, 0) }} registered
+          </small>
+        </div>
+        {% if user.role == "student" %}
+          {% if event.id in registered_event_ids %}
+            <span class="status-badge online">registered</span>
+          {% else %}
+            <form method="post" action="/events/{{ event.id }}/register">
+              <button type="submit">Register</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </article>
+    {% else %}
+      <p class="muted">No events created yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -7,8 +7,11 @@ from app.core.users import get_user_by_id, public_user
 
 
 def set_login_session(request: Request, user: dict[str, Any]) -> None:
+    access_token = user.pop("access_token", "")
     request.session["user_id"] = user["id"]
     request.session["user"] = user
+    if access_token:
+        request.session["supabase_access_token"] = access_token
 
 
 def clear_login_session(request: Request) -> None:
@@ -22,7 +25,7 @@ def get_current_user(request: Request) -> dict[str, Any]:
             status_code=status.HTTP_303_SEE_OTHER,
             headers={"Location": "/login"},
         )
-    user = get_user_by_id(int(user_id))
+    user = get_user_by_id(str(user_id))
     if not user or not user["is_active"]:
         clear_login_session(request)
         raise HTTPException(

@@ -1,94 +1,125 @@
-from datetime import datetime, timezone
-from sqlite3 import IntegrityError
-
-from app.core.db import get_connection
 from app.core.roles import ALL_ROLES
-from app.core.security import hash_password, verify_password
+from app.core.supabase_client import (
+    SupabaseError,
+    admin_create_auth_user,
+    eq,
+    is_configured,
+    rest_insert,
+    rest_select,
+    rest_update,
+    sign_in_with_password,
+)
+
+
+PROFILE_COLUMNS = "*"
 
 
 def authenticate_user(email: str, password: str) -> dict | None:
-    user = get_user_by_email(email)
-    if not user or not user["is_active"]:
+    if not is_configured():
         return None
-    if not verify_password(password, user["password_hash"]):
+    try:
+        auth_response = sign_in_with_password(email.strip().lower(), password)
+    except SupabaseError:
         return None
-    return public_user(user)
+
+    auth_user = auth_response.get("user") or {}
+    user_id = auth_user.get("id")
+    if not user_id:
+        return None
+
+    profile = get_user_by_id(user_id)
+    if not profile or not profile["is_active"]:
+        return None
+    profile["access_token"] = auth_response.get("access_token", "")
+    return profile
 
 
 def get_user_by_email(email: str) -> dict | None:
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT * FROM users WHERE lower(email) = lower(?)",
-            (email.strip(),),
-        ).fetchone()
-    return dict(row) if row else None
+    rows = _profiles({"select": PROFILE_COLUMNS, "email": eq(email.strip().lower()), "limit": "1"})
+    return public_user(rows[0]) if rows else None
 
 
-def get_user_by_id(user_id: int) -> dict | None:
-    with get_connection() as connection:
-        row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    return dict(row) if row else None
+def get_user_by_id(user_id: str) -> dict | None:
+    rows = _profiles({"select": PROFILE_COLUMNS, "id": eq(str(user_id)), "limit": "1"})
+    return public_user(rows[0]) if rows else None
 
 
 def public_user(user: dict) -> dict:
     return {
-        "id": user["id"],
-        "name": user["name"],
+        "id": str(user["id"]),
+        "name": user.get("full_name") or user.get("name") or user["email"],
         "email": user["email"],
         "role": user["role"],
+        "section": user.get("section") or "",
+        "teacher_uid": user.get("teacher_uid") or "",
+        "department": user.get("department") or "",
+        "semester": user.get("semester") or "",
         "is_active": bool(user["is_active"]),
+        "created_at": user.get("created_at", ""),
     }
 
 
 def list_users(role: str = "") -> list[dict]:
-    query = "SELECT id, name, email, role, is_active, created_at FROM users"
-    params: tuple = ()
+    query = {
+        "select": PROFILE_COLUMNS,
+        "order": "role.asc,full_name.asc",
+    }
     if role:
-        query += " WHERE role = ?"
-        params = (role,)
-    query += " ORDER BY role, name"
-    with get_connection() as connection:
-        rows = connection.execute(query, params).fetchall()
-    return [dict(row) for row in rows]
+        query["role"] = eq(role)
+    return [public_user(row) for row in _profiles(query)]
 
 
 def user_counts_by_role() -> dict[str, int]:
     counts = {role: 0 for role in ALL_ROLES}
-    with get_connection() as connection:
-        rows = connection.execute(
-            "SELECT role, COUNT(*) AS total FROM users WHERE is_active = 1 GROUP BY role"
-        ).fetchall()
-    for row in rows:
-        counts[row["role"]] = row["total"]
+    for user in list_users():
+        if user["is_active"]:
+            counts[user["role"]] += 1
     return counts
 
 
-def create_user(name: str, email: str, role: str, password: str) -> tuple[bool, str]:
+def create_user(
+    name: str,
+    email: str,
+    role: str,
+    password: str,
+) -> tuple[bool, str]:
     if role not in ALL_ROLES:
         return False, "Invalid role."
     if not name.strip() or not email.strip() or not password:
         return False, "Name, email, role, and password are required."
     if len(password) < 8:
         return False, "Password must be at least 8 characters."
+    if not is_configured():
+        return False, "Supabase is not configured."
 
-    now = datetime.now(timezone.utc).isoformat()
+    clean_email = email.strip().lower()
+    clean_name = name.strip()
     try:
-        with get_connection() as connection:
-            connection.execute(
-                """
-                INSERT INTO users (name, email, role, password_hash, is_active, created_at)
-                VALUES (?, ?, ?, ?, 1, ?)
-                """,
-                (name.strip(), email.strip().lower(), role, hash_password(password), now),
-            )
-    except IntegrityError:
-        return False, "A user with this email already exists."
+        auth_user = admin_create_auth_user(clean_email, password, clean_name, role)
+        user_id = auth_user["id"]
+        profile_payload = {
+            "id": user_id,
+            "full_name": clean_name,
+            "email": clean_email,
+            "role": role,
+            "is_active": True,
+        }
+        rest_insert("profiles", profile_payload)
+    except SupabaseError as exc:
+        return False, str(exc)
+    except KeyError:
+        return False, "Supabase did not return the new Auth user id."
     return True, "User created successfully."
 
 
-def set_user_active(user_id: int, is_active: bool) -> None:
-    with get_connection() as connection:
-        connection.execute(
-            "UPDATE users SET is_active = ? WHERE id = ?",
-            (1 if is_active else 0, user_id),
-        )
+def set_user_active(user_id: str, is_active: bool) -> None:
+    rest_update("profiles", {"id": eq(str(user_id))}, {"is_active": bool(is_active)})
+
+
+def _profiles(query: dict[str, str]) -> list[dict]:
+    if not is_configured():
+        return []
+    try:
+        return rest_select("profiles", query)
+    except SupabaseError:
+        return []

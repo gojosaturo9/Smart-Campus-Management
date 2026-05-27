@@ -1,0 +1,42 @@
+{% extends "base_public.html" %}
+{% block title %}Face Login - Smart Campus{% endblock %}
+{% block content %}
+<main class="login-shell">
+  <section class="login-panel">
+    <p class="eyebrow">AI Attendance</p>
+    <h1>Face Login</h1>
+    <p class="muted">Scan your live face to open your student attendance dashboard.</p>
+
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/attendance/face-login" enctype="multipart/form-data" class="login-form">
+      <section class="face-scan" data-live-face-scan data-processing-status="Face captured. Matching now...">
+        <div class="face-scan-head">
+          <strong>Live face scan</strong>
+          <span data-scan-status>Camera not started</span>
+        </div>
+        <div class="face-camera-frame">
+          <video data-scan-video autoplay playsinline muted></video>
+          <img data-captured-preview alt="Captured face preview" hidden>
+          <canvas data-scan-canvas hidden></canvas>
+          <div class="face-guide" aria-hidden="true"></div>
+        </div>
+        <input data-face-photo name="face_photo" type="file" accept="image/jpeg" hidden>
+      </section>
+      <button type="submit">Login with Face</button>
+    </form>
+
+    <div class="demo-box">
+      <span>New student?</span>
+      <span>Unknown live face scans will continue into signup automatically.</span>
+      <a class="inline-link" href="/attendance/signup">Create face account</a>
+      <a class="inline-link" href="/login">Use email/password</a>
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/live-face-scan.js"></script>
+{% endblock %}

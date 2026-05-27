@@ -5,8 +5,22 @@
 <section class="panel">
   <div class="section-title">
     <h2>{{ name }}</h2>
-    <p>This area is reserved for the next integration phase.</p>
+    <p>{{ workspace.description }}</p>
   </div>
-  <p class="muted">RBAC and routing are active. Business logic can be connected here without changing the role shell.</p>
+
+  <div class="summary-grid compact-grid">
+    {% for label, value in workspace.details %}
+      <article class="summary-card">
+        <span>{{ label }}</span>
+        <strong>{{ value }}</strong>
+      </article>
+    {% endfor %}
+  </div>
+
+  <div class="button-row">
+    {% for label, href in workspace.actions %}
+      <a class="button-link" href="{{ href }}">{{ label }}</a>
+    {% endfor %}
+  </div>
 </section>
 {% endblock %}

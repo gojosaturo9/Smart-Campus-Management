@@ -317,9 +317,258 @@ Status:
 Folder exists, integration still pending.
 ```
 
-## Recommended Phase 3
+## Phase 3 Status - Completed
 
-Phase 3 should improve the dashboard product experience and connect modules more deeply.
+Implemented:
+
+- Role-specific dashboard action cards for Student, Teacher, Admin, and Alumni portals
+- Cleaner module cards with health and workspace detection badges
+- Separate frontend URL and API URL health checks for ATS and Notes-to-Test
+- Admin-only local module launch controls
+- Admin-only module stop controls for processes started by Smart Campus
+- Per-module process status on module detail pages
+- Per-module log files under `platform/data/module_logs`
+- Module logs page at `/modules/{module_key}/logs`
+- Configurable module start commands in `.env`, not templates
+- Faster health checks so offline modules do not stall dashboards
+
+New files:
+
+```text
+platform/app/core/dashboard_cards.py
+platform/app/core/module_processes.py
+platform/app/templates/modules/module_logs.html
+```
+
+New `.env` values:
+
+```text
+ATS_BACKEND_URL=http://127.0.0.1:8001
+NOTES_TEST_API_URL=http://127.0.0.1:8002
+
+ATTENDANCE_START_COMMAND=streamlit run app.py --server.address 127.0.0.1 --server.port 8503
+TIMETABLE_START_COMMAND=python manage.py runserver 127.0.0.1:8000
+ATS_START_COMMAND=streamlit run frontend/streamlit_app.py --server.address 127.0.0.1 --server.port 8504
+NOTES_TEST_START_COMMAND=cd frontend && npm run dev -- --host 127.0.0.1 --port 5173
+ALUMNI_START_COMMAND=
+```
+
+Phase 3 verification:
+
+```text
+compileall app -> passed
+/login -> 200 OK
+admin login -> /admin/dashboard -> 200 OK
+/modules/attendance as admin -> 200 OK
+/modules/attendance/logs as admin -> 200 OK
+student login -> /student/dashboard -> 200 OK
+/modules/notes-to-test as student -> 200 OK
+```
+
+Current local URL:
+
+```text
+http://127.0.0.1:9000
+```
+
+## Supabase Auth Migration Status - Completed
+
+Implemented:
+
+- Platform login now uses Supabase Auth password sign-in
+- Session user identity now uses Supabase Auth UUIDs instead of SQLite integer ids
+- Role, display name, email, and active status load from `public.profiles`
+- Admin user list now reads from `public.profiles`
+- Admin user creation now creates a Supabase Auth user and matching `public.profiles` row
+- Admin enable/disable now updates `public.profiles.is_active`
+- FastAPI startup no longer creates or seeds the SQLite database
+- `platform/secrets.toml` is the primary local config for Supabase URL, anon key, service role key, and session secret
+- `.env` remains supported for local module URLs and launch commands
+
+New file:
+
+```text
+platform/app/core/supabase_client.py
+```
+
+Required first admin setup:
+
+```text
+Create the admin in Supabase Auth.
+Insert a matching row in public.profiles with role = 'admin' and is_active = true.
+Then log in through /login using that Supabase Auth email/password.
+```
+
+## ATS Backend Integration Status - Completed
+
+Implemented:
+
+- Platform stores the Supabase access token in the server-side session after login
+- Student dashboard calls the ATS backend `/api/v1/history` endpoint with the bearer token
+- Student dashboard shows ATS API status, latest score, total analyses, and latest resume name
+- ATS module detail page shows the same integrated API summary
+- Offline or unavailable ATS backend returns a clean status instead of breaking the dashboard
+
+Files:
+
+```text
+platform/app/core/ats_integration.py
+platform/app/auth/session.py
+platform/app/core/users.py
+platform/app/routes/dashboard.py
+platform/app/routes/modules.py
+platform/app/templates/dashboard/dashboard.html
+platform/app/templates/modules/module_detail.html
+```
+
+Required for live data:
+
+```text
+ATS_BACKEND_URL must point to the running ATS FastAPI backend.
+The signed-in platform user must also be valid for the ATS backend Supabase JWT verification.
+The ATS backend currently reads/writes its history from the `analyses` table used by that module.
+```
+
+## Notes-to-Test API Integration Status - Completed
+
+Implemented:
+
+- Platform calls the Notes-to-Test FastAPI backend `/health` endpoint
+- Student and Teacher dashboards show Notes-to-Test API status, health, and configured API URL
+- Notes-to-Test module detail page shows backend health plus the existing upload, job-status, and quiz-generation endpoint patterns
+- Offline or unavailable Notes-to-Test backend returns a clean status instead of breaking the dashboard
+
+Files:
+
+```text
+platform/app/core/notes_integration.py
+platform/app/routes/dashboard.py
+platform/app/routes/modules.py
+platform/app/templates/dashboard/dashboard.html
+platform/app/templates/modules/module_detail.html
+```
+
+Current limitation:
+
+```text
+The existing Notes-to-Test backend has upload, job polling, and quiz-generation APIs, but no list/recent-history API yet.
+To show real recent documents, recent quizzes, and per-user quiz stats in the platform, add read endpoints to Testmodule later.
+```
+
+## Admin Analytics Status - Completed
+
+Implemented:
+
+- Admin dashboard now shows an analytics snapshot
+- New admin analytics page at `/admin/analytics`
+- Sidebar Analytics link now points to the real admin analytics page
+- Analytics cards include total users, students, teachers, module health, ATS analyses, quiz attempts, events, and alumni posts
+- Counts are read from Supabase tables where available and module health from configured module URLs
+
+Files:
+
+```text
+platform/app/core/analytics.py
+platform/app/routes/admin.py
+platform/app/routes/dashboard.py
+platform/app/templates/admin/analytics.html
+platform/app/templates/dashboard/dashboard.html
+```
+
+## Events Module Status - Completed
+
+Implemented:
+
+- Real events page at `/events`
+- Admin sidebar Events/Seminars link now opens `/events`
+- Student sidebar Events link now opens `/events`
+- Admin can create events with title, type, start/end time, location, and description
+- Student can view events and register
+- Registered student state and registration counts are shown on the events page
+- Data uses Supabase `events` and `event_registrations` tables
+
+Files:
+
+```text
+platform/app/core/events.py
+platform/app/routes/events.py
+platform/app/templates/events/events.html
+platform/app/core/roles.py
+platform/app/main.py
+```
+
+## Alumni Features Status - Completed
+
+Implemented:
+
+- Real alumni opportunities page at `/alumni/opportunities`
+- Student Alumni Connect link now opens `/alumni/opportunities`
+- Alumni Student Connect, Chat/Guidance, and Jobs/Internships links now use the real opportunities page
+- Alumni can create job, internship, and guidance posts
+- Students can browse and filter alumni posts
+- Summary cards show job, internship, and guidance post counts
+- Data uses Supabase `alumni_posts`
+
+Files:
+
+```text
+platform/app/core/alumni.py
+platform/app/routes/alumni.py
+platform/app/templates/alumni/opportunities.html
+platform/app/core/roles.py
+platform/app/main.py
+```
+
+## Better Module Launcher Status - Completed
+
+Implemented:
+
+- Persistent module process registry at `platform/data/module_processes.json`
+- Module status now survives platform server restart if the child PID is still running
+- Start logs include timestamp, module key, and command
+- Admin module launcher overview page at `/modules`
+- Admin sidebar now includes `Module Launcher`
+- Launcher page shows module health, process state, command, details, start, stop, and logs actions
+- Stopped/exited processes are removed from the registry automatically
+
+Files:
+
+```text
+platform/app/core/module_processes.py
+platform/app/routes/modules.py
+platform/app/templates/modules/module_launcher.html
+platform/app/core/roles.py
+platform/.env.example
+```
+
+Manual note:
+
+```text
+Some modules have more than one server. The launcher starts the configured primary command.
+For ATS and Notes-to-Test, backend start commands are documented in .env.example for manual use.
+```
+
+## Recommended Phase 4
+
+Phase 4 should connect data across modules and add analytics.
+
+Integration tasks:
+
+- Create shared student/teacher identity model
+- Map platform users to submodule users
+- Add single sign-on style redirects if possible
+- Add API proxy routes for modules that expose FastAPI endpoints
+- Start API-level integration with ATS and Notes-to-Test because they already have FastAPI backends
+- Keep Streamlit/Django modules launched separately until stable
+
+Analytics tasks:
+
+- Attendance analytics cards
+- ATS usage stats
+- Quiz/test generation stats
+- Timetable generation history
+- Event participation stats
+- Alumni opportunity counts
 
 ## Supabase Migration Plan
 
@@ -343,7 +592,7 @@ To create tables:
 7. Copy `platform/secrets.toml.example` to `platform/secrets.toml`.
 8. Fill Supabase URL, anon key, and service role key.
 
-After that, replace the current SQLite auth code with Supabase Auth + `profiles`.
+The platform now uses Supabase Auth + `profiles` for login and user management.
 
 Required Supabase values:
 
@@ -361,87 +610,335 @@ Never commit real secrets.toml.
 Only commit secrets.toml.example.
 ```
 
-### 1. Improve Role Dashboards
+Current Supabase setup progress:
 
-Student dashboard cards:
+```text
+Supabase schema SQL has been run by the user in the Supabase SQL Editor.
+platform/secrets.toml.example exists as the safe template.
+platform/secrets.toml is the correct local secrets file for this FastAPI platform.
+Do not use platform/.streamlit/secrets.toml for the unified platform; that path is only for Streamlit apps/modules.
+platform/.gitignore now ignores secrets.toml and .streamlit/secrets.toml.
+```
 
-- Attendance status placeholder
-- Resume score shortcut
-- Notes-to-Test shortcut
-- Upcoming events
-- Alumni opportunities
+Current local secrets guidance:
 
-Teacher dashboard cards:
+```toml
+[supabase]
+url = "https://YOUR_PROJECT_ID.supabase.co"
+anon_key = "YOUR_SUPABASE_ANON_KEY"
+service_role_key = "YOUR_SUPABASE_SERVICE_ROLE_KEY"
 
-- Attendance portal shortcut
-- Notes upload/classroom shortcut
-- Notes-to-Test shortcut
-- Timetable shortcut
+[app]
+session_secret = "replace-with-a-long-random-secret"
 
-Admin dashboard cards:
+[modules]
+attendance_url = "http://127.0.0.1:8503"
+timetable_url = "http://127.0.0.1:8000"
+ats_frontend_url = "http://127.0.0.1:8504"
+ats_backend_url = "http://127.0.0.1:8001"
+notes_test_url = "http://127.0.0.1:5173"
+notes_test_api_url = "http://127.0.0.1:8002"
+alumni_url = ""
+```
 
-- Total users
-- Total teachers
-- Total students
-- Module health
-- Events management
+Notes:
 
-Alumni dashboard cards:
+```text
+Keep alumni_url blank until the alumni module has a real local server URL or deployed URL.
+Never paste service_role_key into chat or commit it to GitHub.
+Before replacing SQLite auth, create the first admin user in Supabase Auth and insert a matching public.profiles row.
+```
 
-- Post job/internship
-- Guidance requests
-- Student messages placeholder
+## Current Progress - 2026-05-27
 
-### 2. Add Module Launch Controls
+Unified platform status:
 
-Current Phase 2 can open configured module URLs, but it does not start/stop submodule servers.
+- Login now uses Supabase Auth.
+- User role/status comes from `public.profiles`.
+- Admin user management lists Supabase profile users.
+- Admin-created users create both Supabase Auth user and `profiles` row.
+- Enable/disable updates `profiles.is_active`.
+- SQLite auth startup/seed flow has been removed from the platform.
 
-Next tasks:
+Module status:
 
-- Add "Start module" actions for local development
-- Add per-module process tracking
-- Add safer port checks
-- Add module logs page
-- Keep commands configurable, not hardcoded into templates
+- Platform runs at `http://127.0.0.1:9000`.
+- Notes-to-Test frontend/API integration is working.
+- ATS frontend/API runs, but real scoring still needs `GROQ_API_KEY`.
+- Events, admin analytics, modules page, and role-based dashboards are working.
+- Timetable module runs at `http://127.0.0.1:8000`.
 
-### 3. Connect Data Across Modules
+Attendance-to-Timetable sync:
 
-Tasks:
+- Added sync from TruePresence Attendance Supabase tables into AItimetable SQLite.
+- Sync reads Attendance `teachers`, `subjects`, and `students`.
+- Sync writes timetable `Instructor`, `Course`, `Department`, `Section`, course-instructor links, and `Student`.
+- Admin timetable module page has a `Sync Attendance Data` button.
+- Last successful sync result:
 
-- Create shared student/teacher identity model
-- Map platform users to submodule users
-- Add single sign-on style redirects if possible
-- Add API proxy routes for modules that expose FastAPI endpoints
-- Start with ATS and Notes-to-Test because they already have FastAPI backends
-- Keep Streamlit/Django modules launched separately until stable
+```text
+teachers: 3
+subjects: 3
+departments: 1
+sections: 3
+students: 1
+```
 
-## Recommended Phase 4
+Verified timetable base data:
 
-Phase 4 should add admin analytics.
+```text
+teachers: 8
+courses: 9
+departments: 5
+sections: 4
+rooms: 5
+meeting times: 11
+students: 1
+```
 
-Tasks:
+Verified synced mapping:
 
-- Attendance analytics cards
-- ATS usage stats
-- Quiz/test generation stats
-- Timetable generation history
-- Event participation stats
-- Alumni opportunity counts
+```text
+CS201 | dsa | sweta singh
+```
 
-## Recommended Phase 5
+## Current Progress Update - 2026-05-27
 
-Phase 5 should improve production readiness.
+Timetable generation and platform integration were moved forward after the earlier SQLite-based state.
 
-Tasks:
+### Timetable Generation Fixes
 
-- Move secrets to `.env`
-- Add production session secret
-- Add database migrations
-- Add audit logs
-- Add error pages
-- Add test coverage for RBAC
-- Add Docker setup for platform
-- Add service startup scripts for all modules
+Implemented:
+
+- Fixed generated timetable display so section IDs are matched correctly.
+- Updated AItimetable generation to prioritize section-specific synced courses.
+- Added timetable persistence through `TimetableRun` and `TimetableEntry`.
+- Added repair logic to prevent real timetable collisions:
+  - Same section at same time
+  - Same teacher at same time
+  - Same room at same time
+  - Same subject repeated in the same section on the same day when avoidable
+- Changed timetable generation to a full-day schedule model:
+  - `9:00 - 10:00`
+  - `10:00 - 11:00`
+  - `11:00 - 12:00`
+  - `12:00 - 12:30` lunch break
+  - `12:30 - 1:20`
+  - `1:20 - 2:10`
+  - `2:10 - 3:00`
+- Added AItimetable management command:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py seed_full_day_timetable
+```
+
+Verified:
+
+```text
+Seeded 30 meeting slots and default rooms.
+Full-day generation produced 120 entries.
+Monday audit: 24 entries, 6 occupied periods per section, lunch break empty.
+Section-time collisions: 0
+Teacher-time collisions: 0
+Room-time collisions: 0
+```
+
+### Platform Timetable View
+
+Implemented:
+
+- Added platform timetable page at `/timetable`.
+- Platform timetable page is read-only for students and teachers.
+- Admin retains generation/sync/open-module controls.
+- Teacher access to `/modules/timetable` now redirects to `/timetable`.
+- Student and teacher cannot open the raw timetable generator app from platform UI.
+- Timetable page now shows one selected day at a time, not the full week.
+- Day tabs were added for weekday switching.
+- Lunch break row is shown in the platform timetable view.
+
+Role behavior:
+
+```text
+Admin: full selected-day timetable.
+Student: selected-day timetable for their auto-detected section.
+Teacher: selected-day timetable for their auto-detected classes.
+```
+
+Auto-detection rules:
+
+```text
+Student: platform user email/name matches AItimetable Student email/name.
+Teacher: platform user name/email username matches AItimetable Instructor name/uid.
+```
+
+Manual mapping fields were removed from Admin User Management.
+
+### Dashboard Improvements
+
+Implemented:
+
+- Student dashboard:
+  - Today's timetable
+  - Next class
+  - Upcoming events count
+  - Alumni job/internship counts
+- Teacher dashboard:
+  - Today's teaching schedule
+  - Next class/room
+  - Attendance quick link
+  - Notes-to-Test quick link
+  - Events count
+- Admin dashboard:
+  - Module health
+  - Timetable run count
+  - Event registrations
+  - Alumni post count
+
+### Supabase Migration for Timetable
+
+The timetable module is now configured to use Supabase Postgres instead of SQLite.
+
+Important:
+
+```text
+AItimetable/db.sqlite3 is no longer used by the code after this migration.
+AItimetable now requires SUPABASE_DATABASE_URL.
+```
+
+Changed:
+
+- Removed SQLite fallback from `AItimetable/Scheduler/settings.py`.
+- Fixed `.env` loading so `AItimetable/.env` overrides stale PowerShell environment variables.
+- Fixed URL-decoding for database usernames/passwords, so encoded passwords such as `%40` are decoded before psycopg2 connects.
+- Added safe `.env.example` format for Supabase pooler connection strings.
+- Platform timetable reader now reads Django timetable tables from Supabase REST, not SQLite.
+- Platform Attendance-to-Timetable sync now writes to Supabase Django tables, not SQLite.
+- Manual Sync Attendance button has been removed from the UI.
+- AItimetable generation now auto-imports shared Supabase attendance source tables before generating.
+- Shared attendance source table SQL is available at:
+
+```text
+platform/supabase/shared_attendance_source.sql
+```
+
+Required `AItimetable/.env` format:
+
+```env
+SUPABASE_DATABASE_URL=postgresql://postgres.PROJECT_REF:ENCODED_PASSWORD@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+SUPABASE_SSLMODE=require
+```
+
+Notes:
+
+```text
+Use the Supabase Connect button and copy the Transaction Pooler URI.
+Remove square brackets around the password.
+Encode special password characters, e.g. @ becomes %40.
+Do not commit AItimetable/.env.
+```
+
+Completed setup:
+
+```text
+manage.py migrate -> successful against Supabase Postgres.
+manage.py seed_full_day_timetable -> successful.
+Sync Attendance Data -> successful.
+Last successful Supabase timetable sync:
+teachers: 3
+subjects: 3
+departments: 1
+sections: 3
+students: 1
+```
+
+### Current Working URLs
+
+```text
+Smart Campus platform: http://127.0.0.1:9000
+AItimetable Django app: http://127.0.0.1:8000
+Platform timetable page: http://127.0.0.1:9000/timetable
+Admin timetable module page: http://127.0.0.1:9000/modules/timetable
+```
+
+### Next Start Point
+
+Continue from here:
+
+1. Start the platform if needed:
+
+```powershell
+cd C:\Users\anike\OneDrive\Desktop\SmartCampus\platform
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 9000
+```
+
+2. Start AItimetable if needed:
+
+```powershell
+cd C:\Users\anike\OneDrive\Desktop\SmartCampus\AItimetable
+.\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+```
+
+3. If Supabase has no timetable seed data:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py seed_full_day_timetable
+```
+
+4. In platform admin:
+
+```text
+/modules/timetable
+```
+
+5. In AItimetable:
+
+```text
+Generate Timetable
+```
+
+6. Verify in platform:
+
+```text
+/timetable
+```
+
+Next start point:
+
+```text
+Open http://127.0.0.1:8000 and generate/check the timetable.
+If synced teacher/subject does not appear in generated timetable,
+adjust the AItimetable generator view to prioritize attendance-synced sections/courses.
+Rooms and meeting times already exist, so only generator selection logic should need checking.
+```
+
+## Phase 5 Status - Completed
+
+Phase 5 improves production readiness.
+
+Implemented:
+
+- `.env` is now the primary production config path for Supabase and session settings
+- `secrets.toml` remains supported for older local setups
+- Production startup validation for required Supabase keys and session secret
+- `SESSION_HTTPS_ONLY` support, defaulting to secure cookies in production
+- JSONL audit log at `platform/data/audit.log`
+- Audit events for login success/failure, logout, admin user creation/status changes, module start/stop, and timetable sync
+- Custom 404 and server error pages
+- RBAC test coverage under `platform/tests`
+- Dockerfile and `docker-compose.yml` for platform deployment
+- Supabase migration README
+- PowerShell startup scripts:
+  - `platform/scripts/start-platform.ps1`
+  - `platform/scripts/start-modules.ps1`
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests -> 3 passed
+/login smoke test -> 200 OK
+/missing-page smoke test -> 404 OK
+```
 
 ## Development Rules
 

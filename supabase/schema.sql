@@ -61,14 +61,25 @@ create table if not exists public.departments (
     created_at timestamptz not null default now()
 );
 
+create table if not exists public.branches (
+    id uuid primary key default gen_random_uuid(),
+    department_id uuid not null references public.departments(id) on delete cascade,
+    name text not null,
+    code text not null,
+    created_at timestamptz not null default now(),
+    unique (department_id, code),
+    unique (department_id, name)
+);
+
 create table if not exists public.sections (
     id uuid primary key default gen_random_uuid(),
     department_id uuid references public.departments(id) on delete set null,
+    branch_id uuid references public.branches(id) on delete set null,
     name text not null,
     semester int,
     academic_year text,
     created_at timestamptz not null default now(),
-    unique (department_id, name, semester, academic_year)
+    unique (department_id, branch_id, name, semester, academic_year)
 );
 
 create table if not exists public.subjects (
@@ -86,6 +97,14 @@ drop trigger if exists subjects_set_updated_at on public.subjects;
 create trigger subjects_set_updated_at
 before update on public.subjects
 for each row execute function public.set_updated_at();
+
+create table if not exists public.subject_sections (
+    id uuid primary key default gen_random_uuid(),
+    subject_id uuid not null references public.subjects(id) on delete cascade,
+    section_id uuid not null references public.sections(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    unique (subject_id, section_id)
+);
 
 create table if not exists public.student_profiles (
     id uuid primary key default gen_random_uuid(),
@@ -447,6 +466,9 @@ create table if not exists public.platform_modules (
     updated_at timestamptz not null default now()
 );
 
+create unique index if not exists idx_platform_modules_module_key_unique
+on public.platform_modules (module_key);
+
 drop trigger if exists platform_modules_set_updated_at on public.platform_modules;
 create trigger platform_modules_set_updated_at
 before update on public.platform_modules
@@ -485,8 +507,10 @@ create index if not exists idx_alumni_messages_receiver on public.alumni_message
 
 alter table public.profiles enable row level security;
 alter table public.departments enable row level security;
+alter table public.branches enable row level security;
 alter table public.sections enable row level security;
 alter table public.subjects enable row level security;
+alter table public.subject_sections enable row level security;
 alter table public.student_profiles enable row level security;
 alter table public.teacher_profiles enable row level security;
 alter table public.admin_profiles enable row level security;
@@ -543,17 +567,25 @@ with check (public.is_admin(auth.uid()));
 
 drop policy if exists "campus reference read" on public.departments;
 create policy "campus reference read" on public.departments for select to authenticated using (true);
+drop policy if exists "campus branches read" on public.branches;
+create policy "campus branches read" on public.branches for select to authenticated using (true);
 drop policy if exists "campus sections read" on public.sections;
 create policy "campus sections read" on public.sections for select to authenticated using (true);
 drop policy if exists "campus subjects read" on public.subjects;
 create policy "campus subjects read" on public.subjects for select to authenticated using (true);
+drop policy if exists "campus subject sections read" on public.subject_sections;
+create policy "campus subject sections read" on public.subject_sections for select to authenticated using (true);
 
 drop policy if exists "admins manage departments" on public.departments;
 create policy "admins manage departments" on public.departments for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "admins manage branches" on public.branches;
+create policy "admins manage branches" on public.branches for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 drop policy if exists "admins manage sections" on public.sections;
 create policy "admins manage sections" on public.sections for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 drop policy if exists "admins manage subjects" on public.subjects;
 create policy "admins manage subjects" on public.subjects for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+drop policy if exists "admins manage subject sections" on public.subject_sections;
+create policy "admins manage subject sections" on public.subject_sections for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 drop policy if exists "own student profile read" on public.student_profiles;
 create policy "own student profile read" on public.student_profiles for select to authenticated using (profile_id = auth.uid() or public.is_admin(auth.uid()));
@@ -655,4 +687,3 @@ drop policy if exists "platform modules read" on public.platform_modules;
 create policy "platform modules read" on public.platform_modules for select to authenticated using (true);
 drop policy if exists "admins manage platform modules" on public.platform_modules;
 create policy "admins manage platform modules" on public.platform_modules for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
-

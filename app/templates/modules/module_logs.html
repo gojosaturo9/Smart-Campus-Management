@@ -1,0 +1,16 @@
+{% extends "base_dashboard.html" %}
+{% block title %}{{ module.name }} Logs - Smart Campus{% endblock %}
+{% block page_heading %}{{ module.name }} Logs{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Module Logs</h2>
+      <p>{{ process_status.detail }}</p>
+    </div>
+    <a class="secondary-link" href="/modules/{{ module.key }}">Back to Module</a>
+  </div>
+
+  <pre class="log-box">{{ log_text }}</pre>
+</section>
+{% endblock %}

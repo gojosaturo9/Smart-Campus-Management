@@ -2,10 +2,26 @@
 {% block title %}{{ module.name }} - Smart Campus{% endblock %}
 {% block page_heading %}{{ module.name }}{% endblock %}
 {% block content %}
+{% if message %}
+  <div class="notice">{{ message }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert">{{ error }}</div>
+{% endif %}
+
 <section class="panel">
   <div class="section-title">
-    <h2>{{ module.name }}</h2>
-    <p>{{ module.description }}</p>
+    <div>
+      <h2>{{ module.name }}</h2>
+      <p>{{ module.description }}</p>
+    </div>
+    <div class="badge-row">
+      <em class="status-badge {{ module.health }}">frontend {{ module.health }}</em>
+      {% if module.api_url %}
+        <em class="status-badge {{ module.api_health }}">api {{ module.api_health }}</em>
+      {% endif %}
+      <em class="status-badge {{ process_status.state }}">{{ process_status.state }}</em>
+    </div>
   </div>
 
   <dl class="detail-list">
@@ -14,8 +30,12 @@
       <dd>{% if module.exists %}Detected in workspace{% else %}Folder not found{% endif %}</dd>
     </div>
     <div>
-      <dt>Health</dt>
+      <dt>Frontend health</dt>
       <dd>{{ module.health }}</dd>
+    </div>
+    <div>
+      <dt>API health</dt>
+      <dd>{{ module.api_health }}</dd>
     </div>
     <div>
       <dt>Launch URL</dt>
@@ -26,6 +46,20 @@
           Not configured
         {% endif %}
       </dd>
+    </div>
+    <div>
+      <dt>API URL</dt>
+      <dd>
+        {% if module.api_url %}
+          <a class="inline-link" href="{{ module.api_url }}" target="_blank" rel="noreferrer">{{ module.api_url }}</a>
+        {% else %}
+          Not configured
+        {% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Process</dt>
+      <dd>{{ process_status.detail }}</dd>
     </div>
     <div>
       <dt>Path</dt>
@@ -41,8 +75,90 @@
     </div>
   </dl>
 
-  {% if module.launch_url %}
-    <a class="button-link" href="{{ module.launch_url }}" target="_blank" rel="noreferrer">Open Module</a>
+  {% if ats_summary %}
+    <div class="integration-panel">
+      <h3>ATS API Integration</h3>
+      <div class="summary-grid compact-grid">
+        <article class="summary-card">
+          <span>Status</span>
+          <strong>{{ ats_summary.status }}</strong>
+        </article>
+        <article class="summary-card">
+          <span>Latest score</span>
+          <strong>{% if ats_summary.latest_score is not none %}{{ ats_summary.latest_score }}{% else %}-{% endif %}</strong>
+        </article>
+        <article class="summary-card">
+          <span>Total analyses</span>
+          <strong>{{ ats_summary.total_analyses }}</strong>
+        </article>
+      </div>
+      <p class="muted command-note">{{ ats_summary.message }}</p>
+    </div>
+  {% endif %}
+
+  {% if notes_summary %}
+    <div class="integration-panel">
+      <h3>Notes-to-Test API Integration</h3>
+      <div class="summary-grid compact-grid">
+        <article class="summary-card">
+          <span>Status</span>
+          <strong>{{ notes_summary.status }}</strong>
+        </article>
+        <article class="summary-card">
+          <span>Health</span>
+          <strong>{{ notes_summary.health }}</strong>
+        </article>
+        <article class="summary-card">
+          <span>Endpoints</span>
+          <strong>3</strong>
+        </article>
+      </div>
+      <dl class="detail-list endpoint-list">
+        <div>
+          <dt>Upload</dt>
+          <dd>{{ notes_summary.upload_endpoint }}</dd>
+        </div>
+        <div>
+          <dt>Job status</dt>
+          <dd>{{ notes_summary.job_endpoint }}</dd>
+        </div>
+        <div>
+          <dt>Generate quiz</dt>
+          <dd>{{ notes_summary.quiz_endpoint }}</dd>
+        </div>
+      </dl>
+      <p class="muted command-note">{{ notes_summary.message }}</p>
+    </div>
+  {% endif %}
+
+  <div class="button-row">
+    {% if module.launch_url and (module.key != "timetable" or user.role == "admin") %}
+      <a class="button-link" href="{{ module.launch_url }}" target="_blank" rel="noreferrer">Open Module</a>
+    {% endif %}
+    {% if module.platform_url %}
+      <a class="button-link" href="{{ module.platform_url }}">Open in Platform</a>
+    {% endif %}
+    {% if user.role == "admin" and module.key != "timetable" %}
+      <form method="post" action="/modules/{{ module.key }}/start">
+        <button type="submit">Start Module</button>
+      </form>
+      <form method="post" action="/modules/{{ module.key }}/stop">
+        <button class="secondary-button" type="submit">Stop Module</button>
+      </form>
+      <a class="secondary-link" href="/modules/{{ module.key }}/logs">View Logs</a>
+    {% endif %}
+    {% if user.role == "admin" and module.key == "timetable" %}
+      <form method="post" action="/timetable/generate">
+        <button type="submit">Generate Timetable</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if user.role == "admin" and module.key != "timetable" and not module.start_command %}
+    <p class="muted command-note">Set {{ module.command_env_key }} in <code>platform/.env</code> to enable the start button for this module.</p>
+  {% endif %}
+  {% if user.role == "admin" and module.key == "timetable" %}
+    <p class="muted command-note">Timetable generation now runs inside the platform and reads shared Supabase teachers, subjects, sections, rooms, and time slots directly.</p>
   {% endif %}
 </section>
 {% endblock %}

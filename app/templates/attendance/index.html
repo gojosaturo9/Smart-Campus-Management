@@ -1,0 +1,137 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Attendance - Smart Campus{% endblock %}
+{% block page_heading %}Attendance{% endblock %}
+{% block content %}
+{% if message %}
+  <div class="notice">{{ message }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert">{{ error }}</div>
+{% endif %}
+
+{% if user.role == "student" %}
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Attendance</span>
+    <strong>{{ context.percent }}%</strong>
+    <small>{{ context.present }} present out of {{ context.total }} classes</small>
+  </article>
+  <article class="summary-card">
+    <span>Biometric status</span>
+    <strong>{{ context.attendance_student.biometric_status or "pending" }}</strong>
+    <small>Face profile is used for attendance identity.</small>
+  </article>
+  <article class="summary-card">
+    <span>Section</span>
+    {% set section = context.profile.sections or {} %}
+    {% set department = section.departments or {} %}
+    <strong>{{ department.code or "-" }}</strong>
+    <small>{% if section.semester %}Sem {{ section.semester }}{% endif %} {{ section.name or "" }}</small>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>My Attendance Records</h2>
+      <p>Records saved from platform attendance sessions.</p>
+    </div>
+  </div>
+  {% if context.records %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Marked at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for record in context.records %}
+            {% set session = record.attendance_sessions or {} %}
+            {% set subject = session.subjects or {} %}
+            <tr>
+              <td>{{ session.session_date or "-" }}</td>
+              <td>{{ subject.code or "" }} {{ subject.name or "-" }}</td>
+              <td>{{ record.status }}</td>
+              <td>{{ record.marked_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No attendance records yet.</p>
+  {% endif %}
+</section>
+{% elif user.role == "teacher" %}
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Subjects</span>
+    <strong>{{ context.subjects|length }}</strong>
+    <small>From your platform teaching profile</small>
+  </article>
+  <article class="summary-card">
+    <span>Recent sessions</span>
+    <strong>{{ context.sessions|length }}</strong>
+    <small>Saved in canonical attendance tables</small>
+  </article>
+  <article class="summary-card">
+    <span>Next step</span>
+    <strong>Capture</strong>
+    <small>Class-wise face attendance capture will plug in here.</small>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Attendance Classes</h2>
+      <p>These subjects come from the same teacher profile used by timetable.</p>
+    </div>
+    <a class="secondary-link" href="/timetable">Open Timetable</a>
+  </div>
+  {% if context.subjects %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Subject</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for subject in context.subjects %}
+            <tr>
+              <td>{{ subject.code }}</td>
+              <td>{{ subject.name }}</td>
+              <td>{% if subject.is_active %}Active{% else %}Inactive{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No subjects found. Add teaching details from My Teaching Profile.</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Attendance students</span>
+    <strong>{{ context.students }}</strong>
+  </article>
+  <article class="summary-card">
+    <span>Face verified</span>
+    <strong>{{ context.verified_students }}</strong>
+  </article>
+  <article class="summary-card">
+    <span>Attendance records</span>
+    <strong>{{ context.records }}</strong>
+  </article>
+</section>
+{% endif %}
+{% endblock %}

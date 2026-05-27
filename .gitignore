@@ -1,1 +1,10 @@
 .env
+secrets.toml
+.streamlit/secrets.toml
+__pycache__/
+*.py[cod]
+.pytest_cache/
+data/*.log
+data/module_logs/
+data/module_processes.json
+data/smartcampus.db

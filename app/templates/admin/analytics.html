@@ -1,0 +1,21 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Analytics - Smart Campus{% endblock %}
+{% block page_heading %}Analytics{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-title">
+    <h2>Platform Analytics</h2>
+    <p>Current counts from Supabase-backed platform data and module health checks.</p>
+  </div>
+
+  <div class="analytics-grid">
+    {% for metric in analytics_cards %}
+      <article class="summary-card">
+        <span>{{ metric.label }}</span>
+        <strong>{{ metric.value }}</strong>
+        <small>{{ metric.detail }}</small>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

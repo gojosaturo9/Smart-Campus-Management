@@ -1,0 +1,128 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Timetable - Smart Campus{% endblock %}
+{% block page_heading %}Timetable{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Weekly Timetable</h2>
+      {% if timetable.run %}
+        <p>Generated {{ timetable.generated_label }}</p>
+      {% else %}
+        <p>{{ timetable.message }}</p>
+      {% endif %}
+    </div>
+    <div class="button-row no-margin">
+      {% if user.role == "admin" %}
+        <form method="post" action="/timetable/generate" class="generate-timetable-form">
+          <button type="submit" data-default-label="Generate Timetable">Generate Timetable</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if user.role == "admin" %}
+    <div class="generating-status" id="generating-status" hidden>
+      <strong>Generating timetable...</strong>
+      <span>Please wait while the latest teacher, subject, section, room, and slot data is processed.</span>
+    </div>
+  {% endif %}
+
+  {% if message %}
+    <div class="notice">{{ message }}</div>
+  {% endif %}
+  {% if error %}
+    <div class="alert">{{ error }}</div>
+  {% endif %}
+  {% if timetable.message %}
+    <div class="{% if timetable.ok %}notice{% else %}alert{% endif %}">{{ timetable.message }}</div>
+  {% endif %}
+
+  {% if timetable.entries %}
+    <div class="summary-grid">
+      <article class="summary-card">
+        <span>Total classes</span>
+        <strong>{{ timetable.entries|length }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>Sections</span>
+        <strong>{{ timetable.sections|length }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>Teachers</span>
+        <strong>{{ timetable.teachers|length }}</strong>
+      </article>
+    </div>
+
+    <div class="timetable-section-grid">
+      {% for section_table in timetable.section_tables %}
+        <article class="timetable-section-card">
+          <div class="timetable-section-head">
+            <div>
+              <h3>{{ section_table.section }}</h3>
+              <p>{{ section_table.class_count }} classes | {{ section_table.teacher_count }} teachers</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="timetable-grid-table">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  {% for slot in section_table.rows[0].slots %}
+                    <th>
+                      <strong>{{ slot.label }}</strong>
+                      <small>{{ slot.time }}</small>
+                    </th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in section_table.rows %}
+                  <tr>
+                    <th>{{ row.day }}</th>
+                    {% for slot in row.slots %}
+                      <td class="{% if slot.is_lunch %}lunch-cell{% endif %}">
+                        {% if slot.is_lunch %}
+                          <span class="lunch-pill">Lunch</span>
+                        {% elif slot.entries %}
+                          {% for entry in slot.entries %}
+                            <div class="timetable-cell">
+                              <strong>{{ entry.subject_code }}</strong>
+                              <span>{{ entry.subject_name }}</span>
+                              <small>{{ entry.teacher }}{% if entry.room %} | {{ entry.room }}{% endif %}</small>
+                            </div>
+                          {% endfor %}
+                        {% else %}
+                          <span class="empty-cell">-</span>
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+{% if user.role == "admin" %}
+<script>
+  document.querySelectorAll(".generate-timetable-form").forEach((form) => {
+    form.addEventListener("submit", () => {
+      const button = form.querySelector("button[type='submit']");
+      const status = document.getElementById("generating-status");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Generating...";
+      }
+      if (status) {
+        status.hidden = false;
+      }
+    });
+  });
+</script>
+{% endif %}
+{% endblock %}

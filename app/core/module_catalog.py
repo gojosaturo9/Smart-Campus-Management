@@ -16,6 +16,11 @@ class ModuleInfo:
     entry_hint: str
     allowed_roles: tuple[str, ...]
     url_env_key: str = ""
+    api_url_env_key: str = ""
+    api_health_path: str = ""
+    command_env_key: str = ""
+    api_command_env_key: str = ""
+    platform_url: str = ""
 
     @property
     def path(self) -> Path:
@@ -30,12 +35,42 @@ class ModuleInfo:
         return settings.env(self.url_env_key) if self.url_env_key else ""
 
     @property
+    def api_url(self) -> str:
+        return settings.env(self.api_url_env_key) if self.api_url_env_key else ""
+
+    @property
+    def start_command(self) -> str:
+        return settings.env(self.command_env_key) if self.command_env_key else ""
+
+    @property
+    def api_start_command(self) -> str:
+        return settings.env(self.api_command_env_key) if self.api_command_env_key else ""
+
+    @property
+    def preferred_url(self) -> str:
+        return self.platform_url or self.launch_url
+
+    @property
+    def dashboard_url(self) -> str:
+        return self.platform_url or f"/modules/{self.key}"
+
+    @property
     def health(self) -> str:
-        if not self.launch_url:
+        return self.health_for_url(self.launch_url)
+
+    @property
+    def api_health(self) -> str:
+        if not self.api_url:
+            return "not configured"
+        return self.health_for_url(self.api_url.rstrip("/") + self.api_health_path)
+
+    @staticmethod
+    def health_for_url(url: str) -> str:
+        if not url:
             return "not configured"
         try:
-            request = Request(self.launch_url, headers={"User-Agent": "SmartCampusHealth/1.0"})
-            with urlopen(request, timeout=1.5) as response:
+            request = Request(url, headers={"User-Agent": "SmartCampusHealth/1.0"})
+            with urlopen(request, timeout=0.35) as response:
                 return "online" if response.status < 500 else "error"
         except (OSError, URLError, ValueError):
             return "offline"
@@ -45,22 +80,22 @@ MODULES = {
     "attendance": ModuleInfo(
         key="attendance",
         name="AI Attendance System",
-        description="Biometric and face-recognition attendance module.",
-        relative_path="TruePresence/AI-powered-attendance-platform",
-        stack="Streamlit + Python AI",
-        entry_hint="streamlit run app.py",
+        description="Platform-native attendance using shared Supabase student, teacher, subject, and biometric data.",
+        relative_path="platform",
+        stack="FastAPI integrated",
+        entry_hint="Open /attendance inside the platform",
         allowed_roles=("student", "teacher", "admin"),
-        url_env_key="ATTENDANCE_URL",
+        platform_url="/attendance",
     ),
     "timetable": ModuleInfo(
         key="timetable",
         name="AI Timetable Generator",
-        description="Genetic-algorithm timetable scheduler.",
+        description="Platform-native timetable scheduler using shared Supabase teacher, subject, and section data.",
         relative_path="AItimetable",
-        stack="Django",
-        entry_hint="python manage.py runserver",
-        allowed_roles=("teacher", "admin"),
-        url_env_key="TIMETABLE_URL",
+        stack="FastAPI integrated",
+        entry_hint="Open /timetable and generate inside the platform",
+        allowed_roles=("admin",),
+        platform_url="/timetable",
     ),
     "ats-resume": ModuleInfo(
         key="ats-resume",
@@ -71,6 +106,10 @@ MODULES = {
         entry_hint="uvicorn backend.main:app + streamlit frontend",
         allowed_roles=("student",),
         url_env_key="ATS_FRONTEND_URL",
+        api_url_env_key="ATS_BACKEND_URL",
+        api_health_path="/api/v1/health",
+        command_env_key="ATS_START_COMMAND",
+        api_command_env_key="ATS_BACKEND_START_COMMAND",
     ),
     "notes-to-test": ModuleInfo(
         key="notes-to-test",
@@ -81,6 +120,10 @@ MODULES = {
         entry_hint="Run backend and frontend from module README",
         allowed_roles=("student", "teacher"),
         url_env_key="NOTES_TEST_URL",
+        api_url_env_key="NOTES_TEST_API_URL",
+        api_health_path="/health",
+        command_env_key="NOTES_TEST_START_COMMAND",
+        api_command_env_key="NOTES_TEST_API_START_COMMAND",
     ),
     "alumni-connect": ModuleInfo(
         key="alumni-connect",
@@ -91,6 +134,8 @@ MODULES = {
         entry_hint="To be connected in a later phase",
         allowed_roles=("student", "admin", "alumni"),
         url_env_key="ALUMNI_URL",
+        command_env_key="ALUMNI_START_COMMAND",
+        platform_url="/alumni/opportunities",
     ),
 }
 

@@ -1,0 +1,14 @@
+{% extends "base_public.html" %}
+
+{% block title %}Server Error - Smart Campus{% endblock %}
+
+{% block content %}
+  <section class="login-shell">
+    <div class="login-panel compact error-page">
+      <p class="eyebrow">Error</p>
+      <h1>Something went wrong</h1>
+      <p>The platform could not complete this request. Please try again or check the server logs.</p>
+      <a class="button-link" href="/login">Go to login</a>
+    </div>
+  </section>
+{% endblock %}

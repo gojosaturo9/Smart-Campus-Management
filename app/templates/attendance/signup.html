@@ -1,0 +1,114 @@
+{% extends "base_public.html" %}
+{% block title %}Student Face Signup - Smart Campus{% endblock %}
+{% block content %}
+<main class="login-shell">
+  <section class="login-panel">
+    <p class="eyebrow">AI Attendance</p>
+    <h1>{% if pending_face %}New Student Registration{% else %}Student Face Signup{% endif %}</h1>
+    <p class="muted">
+      {% if pending_face %}
+        Face not recognized. Complete registration below with the captured live scan.
+      {% else %}
+        Create your student account with a live camera face scan.
+      {% endif %}
+    </p>
+
+    {% if message %}
+      <div class="notice">{{ message }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/attendance/signup" enctype="multipart/form-data" class="login-form">
+      <label>
+        Full name
+        <input name="name" type="text" required>
+      </label>
+      <label>
+        Email
+        <input name="email" type="email" required>
+      </label>
+      <label>
+        Password
+        <input name="password" type="password" minlength="8" required>
+      </label>
+      <label>
+        Roll number
+        <input name="roll_number" type="text" required>
+      </label>
+      <label>
+        Department
+        <select name="department_id" data-department-select required>
+          <option value="">Select department</option>
+          {% for department in context.departments %}
+            <option value="{{ department.id }}">{{ department.name }}{% if department.code %} ({{ department.code }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Branch
+        <select name="branch_id" data-branch-select required>
+          <option value="">Select branch</option>
+          {% for branch in context.branches %}
+            <option value="{{ branch.id }}" data-department-id="{{ branch.department_id }}">{{ branch.name }}{% if branch.code %} ({{ branch.code }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% if context.branch_error %}
+        <div class="alert">Branch setup is missing in Supabase. Run the branches migration before student signup.</div>
+      {% endif %}
+      <label>
+        Semester
+        <select name="semester" required>
+          <option value="">Select semester</option>
+          {% for semester in context.semesters %}
+            <option value="{{ semester }}">Semester {{ semester }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Section
+        <select name="section_name" required>
+          <option value="">Select section</option>
+          {% for section_name in context.section_names %}
+            <option value="{{ section_name }}">{{ section_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Academic year
+        <input name="academic_year" type="text" value="{{ context.default_academic_year }}" required>
+      </label>
+      {% if pending_face %}
+        <div class="notice">Live face scan is ready. Complete the form to create your account.</div>
+      {% else %}
+        <section class="face-scan" data-live-face-scan data-processing-status="Creating your profile and encoding biometrics...">
+          <div class="face-scan-head">
+            <strong>Live face scan</strong>
+            <span data-scan-status>Camera not started</span>
+          </div>
+          <div class="face-camera-frame">
+            <video data-scan-video autoplay playsinline muted></video>
+            <img data-captured-preview alt="Captured face preview" hidden>
+            <canvas data-scan-canvas hidden></canvas>
+            <div class="face-guide" aria-hidden="true"></div>
+          </div>
+          <input data-face-photo name="face_photo" type="file" accept="image/jpeg" hidden>
+        </section>
+      {% endif %}
+      <button type="submit">Create Account</button>
+    </form>
+
+    <div class="demo-box">
+      <span>Already enrolled?</span>
+      <a class="inline-link" href="/attendance/face-login">Login with face</a>
+      <a class="inline-link" href="/login">Login with email/password</a>
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/live-face-scan.js"></script>
+  <script src="/static/js/signup-branch-filter.js"></script>
+{% endblock %}

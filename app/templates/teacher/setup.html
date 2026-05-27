@@ -1,0 +1,157 @@
+{% extends "base_dashboard.html" %}
+{% block title %}My Teaching Profile - Smart Campus{% endblock %}
+{% block page_heading %}My Teaching Profile{% endblock %}
+{% block content %}
+{% if saved %}
+  <div class="notice">{{ saved }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert">{{ error }}</div>
+{% endif %}
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Profile Details</h2>
+      <p>These details identify you in the timetable and teacher records.</p>
+    </div>
+  </div>
+
+  <form class="inline-form teacher-profile-form" method="post" action="/teacher/setup/profile">
+    <label>
+      Employee Code
+      <input name="employee_code" type="text" value="{{ teacher_profile.employee_code or '' }}" placeholder="T001">
+    </label>
+    <label>
+      Designation
+      <input name="designation" type="text" value="{{ teacher_profile.designation or '' }}" placeholder="Assistant Professor">
+    </label>
+    <button type="submit">Save Profile</button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Add Subject</h2>
+      <p>Add the subjects and class section you teach. Admin generation will use this data.</p>
+    </div>
+  </div>
+
+  <form class="teacher-subject-form" method="post" action="/teacher/setup/subjects">
+    <label>
+      Subject Code
+      <input name="subject_code" type="text" placeholder="CS202" required>
+    </label>
+    <label>
+      Subject Name
+      <input name="subject_name" type="text" placeholder="AI/ML" required>
+    </label>
+    <label>
+      Department
+      <input name="department_name" type="text" placeholder="Computer Science" required>
+    </label>
+    <label>
+      Department Code
+      <input name="department_code" type="text" placeholder="CSE">
+    </label>
+    <label>
+      Branch
+      <input name="branch_name" type="text" placeholder="AI/ML" required>
+    </label>
+    <label>
+      Branch Code
+      <input name="branch_code" type="text" placeholder="AIML">
+    </label>
+    <label>
+      Semester
+      <input name="semester" type="number" min="1" max="12" placeholder="6" required>
+    </label>
+    <label>
+      Section
+      <input name="section_name" type="text" value="A" maxlength="10" required>
+    </label>
+    <label>
+      Academic Year
+      <input name="academic_year" type="text" value="2026-27" required>
+    </label>
+    <button type="submit">Save Subject</button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>My Subjects</h2>
+      <p>Subjects listed here will be included when admin syncs and generates a timetable.</p>
+    </div>
+  </div>
+
+  {% if subjects %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Subject</th>
+            <th>Department</th>
+            <th>Branch</th>
+            <th>Semester</th>
+            <th>Section</th>
+            <th>Academic Year</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for subject in subjects %}
+            <tr>
+              <td>{{ subject.code }}</td>
+              <td>{{ subject.name }}</td>
+              <td>{{ subject.department_name or "-" }}</td>
+              <td>
+                {% if subject.linked_sections %}
+                  {% for section in subject.linked_sections %}
+                    <span>{{ section.branch_name or section.branch_code or "-" }}</span>{% if not loop.last %}<br>{% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="muted">Re-save required</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if subject.linked_sections %}
+                  {% for section in subject.linked_sections %}
+                    <span>{{ section.semester or "-" }}</span>{% if not loop.last %}<br>{% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="muted">Re-save required</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if subject.linked_sections %}
+                  {% for section in subject.linked_sections %}
+                    <span>{{ section.name or "-" }}</span>{% if not loop.last %}<br>{% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="muted">Re-save required</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if subject.linked_sections %}
+                  {% for section in subject.linked_sections %}
+                    <span>{{ section.academic_year or "-" }}</span>{% if not loop.last %}<br>{% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="muted">Re-save required</span>
+                {% endif %}
+              </td>
+              <td>{% if subject.is_active %}Active{% else %}Inactive{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No subjects added yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,39 +1,48 @@
 {% extends "base_public.html" %}
 {% block title %}Login - Smart Campus{% endblock %}
 {% block content %}
-<main class="login-shell">
-  <section class="login-panel">
-    <div>
-      <p class="eyebrow">Unified Python Portal</p>
-      <h1>Smart Campus Management Platform</h1>
-      <p class="muted">Sign in with your campus account to enter the protected dashboard.</p>
-    </div>
+<main class="portal-login-shell">
+  <section class="portal-hero">
+    <p class="eyebrow">Smart Campus</p>
+    <h1>Choose Your Portal</h1>
+    <p class="muted">Each role has a separate entry point for its dashboard and tools.</p>
+  </section>
 
-    {% if error %}
-      <div class="alert">{{ error }}</div>
-    {% endif %}
+  <section class="role-entry-grid" aria-label="Role portals">
+    {% for role, item in roles.items() %}
+      <article class="role-entry-card {% if selected_role == role %}active{% endif %}">
+        <span>{{ role_labels[role] }}</span>
+        <strong>{{ item.title }}</strong>
+        <small>{{ item.description }}</small>
 
-    <form method="post" action="/login" class="login-form">
-      <label>
-        Email
-        <input name="email" type="email" placeholder="admin@campus.local" autocomplete="username" required>
-      </label>
+        {% if error and selected_role == role %}
+          <div class="alert">{{ error }}</div>
+        {% endif %}
 
-      <label>
-        Password
-        <input name="password" type="password" placeholder="Admin@123" autocomplete="current-password" required>
-      </label>
+        <form method="post" action="/login" class="role-login-form">
+          <input name="role" type="hidden" value="{{ role }}">
+          <label>
+            Email
+            <input name="email" type="email" placeholder="{{ item.email }}" autocomplete="username" required>
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" placeholder="{{ item.password }}" autocomplete="current-password" required>
+          </label>
+          <button type="submit">{{ item.action }}</button>
+        </form>
 
-      <button type="submit">Enter Dashboard</button>
-    </form>
-
-    <div class="demo-box">
-      <strong>Demo accounts</strong>
-      <span>admin@campus.local / Admin@123</span>
-      <span>student@campus.local / Student@123</span>
-      <span>teacher@campus.local / Teacher@123</span>
-      <span>alumni@campus.local / Alumni@123</span>
-    </div>
+        <div class="role-card-links">
+          <small>{{ item.email }} / {{ item.password }}</small>
+          {% if item.face_login_url %}
+            <a class="button-link secondary-link" href="{{ item.face_login_url }}">Login with Face</a>
+          {% endif %}
+          {% if item.signup_url %}
+            <a class="inline-link" href="{{ item.signup_url }}">{{ item.signup_label }}</a>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
   </section>
 </main>
 {% endblock %}
