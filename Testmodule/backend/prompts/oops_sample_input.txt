@@ -1,0 +1,17 @@
+Chapter: Object Oriented Programming System
+
+OOP is a programming paradigm based on objects that contain both data and methods. It helps model real-world entities such as Car, Student, and Account.
+
+A class is a blueprint or template that defines the attributes and methods of objects. An object is a real instance of a class created in memory.
+
+Encapsulation means wrapping data and methods into a single class and restricting direct access to internal data. It supports data hiding by using private access modifiers and controlled getter/setter methods.
+
+Inheritance allows a child class or derived class to reuse properties and behavior from a parent class or base class. It improves code reuse and creates a hierarchy.
+
+Polymorphism is the ability of an object or method to behave in different forms depending on context. Compile-time polymorphism is achieved through method overloading, while run-time polymorphism is achieved through method overriding.
+
+Abstraction means hiding unnecessary implementation details and showing only relevant features. In C++, abstraction can be achieved using pure virtual functions. In Java, abstraction can be achieved using abstract classes and interfaces.
+
+A constructor is a special method called automatically when an object is created. It initializes an object, has the same name as the class, and has no return type.
+
+A destructor in C++ is called when an object goes out of scope or is explicitly deleted. It releases resources such as memory or file handles. Java does not use destructors because it has garbage collection.
