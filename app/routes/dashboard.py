@@ -28,7 +28,13 @@ def admin_dashboard(request: Request, user=Depends(require_role(ADMIN))):
 
 @router.get("/alumni/dashboard")
 def alumni_dashboard(request: Request, user=Depends(require_role(ALUMNI))):
-    return _dashboard(request, user, "Alumni Dashboard")
+    return templates.TemplateResponse(
+        "alumni/dashboard.html",
+        {
+            "request": request,
+            "user": user,
+        },
+    )
 
 
 def _dashboard(request: Request, user: dict, title: str):

@@ -1,4 +1,6 @@
 from app.core.roles import ALL_ROLES
+from app.core.db import get_connection, initialize_database
+from app.core.security import verify_password
 from app.core.supabase_client import (
     SupabaseError,
     admin_create_auth_user,
@@ -16,7 +18,7 @@ PROFILE_COLUMNS = "*"
 
 def authenticate_user(email: str, password: str) -> dict | None:
     if not is_configured():
-        return None
+        return _authenticate_local_demo_user(email, password)
     try:
         auth_response = sign_in_with_password(email.strip().lower(), password)
     except SupabaseError:
@@ -34,14 +36,67 @@ def authenticate_user(email: str, password: str) -> dict | None:
     return profile
 
 
+def _authenticate_local_demo_user(email: str, password: str) -> dict | None:
+    initialize_database()
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, name, email, role, password_hash, is_active, created_at
+            FROM users
+            WHERE lower(email) = lower(?)
+            LIMIT 1
+            """,
+            (email.strip(),),
+        ).fetchone()
+    if not row or not row["is_active"]:
+        return None
+    if not verify_password(password, row["password_hash"]):
+        return None
+    return public_user(dict(row))
+
+
 def get_user_by_email(email: str) -> dict | None:
+    if not is_configured():
+        return _get_local_user_by_email(email)
     rows = _profiles({"select": PROFILE_COLUMNS, "email": eq(email.strip().lower()), "limit": "1"})
     return public_user(rows[0]) if rows else None
 
 
 def get_user_by_id(user_id: str) -> dict | None:
+    if not is_configured():
+        return _get_local_user_by_id(user_id)
     rows = _profiles({"select": PROFILE_COLUMNS, "id": eq(str(user_id)), "limit": "1"})
     return public_user(rows[0]) if rows else None
+
+
+def _get_local_user_by_email(email: str) -> dict | None:
+    initialize_database()
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, name, email, role, is_active, created_at
+            FROM users
+            WHERE lower(email) = lower(?)
+            LIMIT 1
+            """,
+            (email.strip(),),
+        ).fetchone()
+    return public_user(dict(row)) if row else None
+
+
+def _get_local_user_by_id(user_id: str) -> dict | None:
+    initialize_database()
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, name, email, role, is_active, created_at
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (str(user_id),),
+        ).fetchone()
+    return public_user(dict(row)) if row else None
 
 
 def public_user(user: dict) -> dict:

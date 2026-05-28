@@ -1,0 +1,53 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Alumni Dashboard - Smart Campus{% endblock %}
+{% block page_heading %}Alumni Dashboard{% endblock %}
+{% block content %}
+<script>
+  tailwind = {
+    config: {
+      theme: {
+        extend: {
+          colors: {
+            navy: "#1E3A8A",
+            gold: "#F59E0B",
+          },
+        },
+      },
+    },
+  };
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .alumni-react-app,
+  .alumni-react-app * {
+    box-sizing: border-box;
+  }
+
+  .alumni-react-app button {
+    min-height: auto;
+    box-shadow: none;
+    text-transform: none;
+  }
+
+  .alumni-react-app button:hover {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .alumni-react-app input,
+  .alumni-react-app select,
+  .alumni-react-app textarea {
+    box-shadow: none;
+  }
+</style>
+<div
+  id="alumni-dashboard-root"
+  class="alumni-react-app"
+  data-user-name="{{ user.name }}"
+  data-user-email="{{ user.email }}"
+></div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="/static/js/alumni-dashboard.js"></script>
+{% endblock %}
