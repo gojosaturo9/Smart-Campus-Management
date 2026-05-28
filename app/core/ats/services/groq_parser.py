@@ -1,6 +1,7 @@
 import os
 import json 
 import logging
+import re
 from typing import Dict
 
 from groq import Groq
@@ -107,7 +108,16 @@ def _try_parse_json(text: str) -> dict | None:
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        return None
+        pass
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(cleaned[start : end + 1])
+        except json.JSONDecodeError:
+            return None
+    return None
     
 def parse_resume(raw_text: str)->Dict:
 
@@ -132,9 +142,8 @@ def parse_resume(raw_text: str)->Dict:
     if result is not None:
         return _validate_resume_result(result)
 
-    raise ValueError(
-        f"Groq returned unparseable response after retry. Raw response:\n{raw_response[:500]}"
-    )
+    logger.warning("Groq resume parse returned non-JSON after retry; using local fallback parser.")
+    return _fallback_parse_resume(raw_text)
     
 JD_SYSTEM_PROMPT = (
     "You are a job description parser. Extract information and "
@@ -183,9 +192,166 @@ def parse_job_description(raw_text: str) -> Dict:
     if result is not None:
         return _validate_jd_result(result)
 
-    raise ValueError(
-        f"Groq returned unparseable response after retry. Raw response:\n{raw_response[:500]}"
+    logger.warning("Groq JD parse returned non-JSON after retry; using local fallback parser.")
+    return _fallback_parse_jd(raw_text)
+
+
+def _fallback_parse_resume(raw_text: str) -> dict:
+    text = raw_text or ""
+    lines = [line.strip(" \t-*•") for line in text.splitlines() if line.strip()]
+    collapsed = " ".join(lines)
+    skills = _extract_section_items(text, ("skills", "technical skills", "core skills"))
+    certifications = _extract_section_items(text, ("certifications", "certification"))
+    projects = _extract_projects(lines)
+    action_verbs = _extract_action_verbs(collapsed)
+    keywords = _unique(skills + certifications + action_verbs + _extract_keyword_phrases(collapsed))
+    email_match = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", text)
+    phone_match = re.search(r"(?:\+?\d[\d\s().-]{7,}\d)", text)
+
+    return _validate_resume_result(
+        {
+            "name": lines[0] if lines else "",
+            "email": email_match.group(0) if email_match else None,
+            "phone": phone_match.group(0) if phone_match else None,
+            "linkedin": _first_url(text, "linkedin.com"),
+            "github": _first_url(text, "github.com"),
+            "professional_summary": _extract_summary(lines),
+            "skills": skills,
+            "experience": _extract_experience(lines),
+            "education": _extract_section_items(text, ("education",)),
+            "certifications": certifications,
+            "projects": projects,
+            "action_verbs": action_verbs,
+            "keywords": keywords,
+        }
     )
+
+
+def _fallback_parse_jd(raw_text: str) -> dict:
+    text = raw_text or ""
+    keywords = _extract_keyword_phrases(" ".join(text.splitlines()))
+    return _validate_jd_result(
+        {
+            "job_title": "",
+            "required_skills": _extract_section_items(text, ("required skills", "requirements", "skills")),
+            "preferred_skills": _extract_section_items(text, ("preferred skills", "nice to have")),
+            "experience_required": "",
+            "education_required": "",
+            "key_responsibilities": _extract_section_items(text, ("responsibilities", "what you will do")),
+            "keywords": keywords,
+        }
+    )
+
+
+def _extract_section_items(text: str, headings: tuple[str, ...]) -> list[str]:
+    lines = [line.strip(" \t-*•:") for line in text.splitlines()]
+    items: list[str] = []
+    collecting = False
+    section_headings = {
+        "summary",
+        "profile",
+        "objective",
+        "experience",
+        "work experience",
+        "education",
+        "certifications",
+        "projects",
+        "skills",
+        "technical skills",
+        "core skills",
+        "achievements",
+    }
+    for line in lines:
+        if not line:
+            continue
+        normalized = line.lower().strip(":")
+        if normalized in headings:
+            collecting = True
+            continue
+        if collecting and normalized in section_headings and normalized not in headings:
+            break
+        if collecting:
+            parts = re.split(r"[,|;/]", line)
+            items.extend(part.strip() for part in parts if _looks_like_item(part))
+    return _unique(items)
+
+
+def _extract_projects(lines: list[str]) -> list[dict]:
+    projects: list[dict] = []
+    in_projects = False
+    for index, line in enumerate(lines):
+        normalized = line.lower().strip(":")
+        if normalized == "projects":
+            in_projects = True
+            continue
+        if in_projects and normalized in {"skills", "experience", "education", "certifications"}:
+            break
+        if in_projects and line and not line.lower().startswith(("description", "technologies")):
+            description = lines[index + 1] if index + 1 < len(lines) else ""
+            projects.append({"title": line, "description": description, "technologies": []})
+    return projects[:5]
+
+
+def _extract_experience(lines: list[str]) -> list[dict]:
+    for index, line in enumerate(lines):
+        if line.lower().strip(":") in {"experience", "work experience"}:
+            description = " ".join(lines[index + 1 : index + 6])
+            return [
+                {
+                    "job_title": "",
+                    "company": "",
+                    "start_date": "",
+                    "end_date": "",
+                    "duration_months": 0,
+                    "description": description,
+                }
+            ]
+    return []
+
+
+def _extract_summary(lines: list[str]) -> str:
+    for index, line in enumerate(lines):
+        if line.lower().strip(":") in {"summary", "profile", "objective", "professional summary"}:
+            return " ".join(lines[index + 1 : index + 4])
+    return ""
+
+
+def _extract_action_verbs(text: str) -> list[str]:
+    verbs = re.findall(
+        r"\b(achieved|built|created|designed|developed|implemented|improved|led|managed|optimized|reduced|tested)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return _unique([verb.title() for verb in verbs])
+
+
+def _extract_keyword_phrases(text: str) -> list[str]:
+    phrases = re.findall(r"\b[A-Z][A-Za-z0-9+#.-]*(?:\s+[A-Z][A-Za-z0-9+#.-]*){0,3}\b", text)
+    return _unique([phrase.strip() for phrase in phrases if len(phrase.strip()) > 2])[:30]
+
+
+def _first_url(text: str, domain: str) -> str | None:
+    match = re.search(r"https?://[^\s)]+", text)
+    if match and domain in match.group(0).lower():
+        return match.group(0)
+    return None
+
+
+def _looks_like_item(value: str) -> bool:
+    value = value.strip()
+    return bool(value) and len(value) <= 80 and not value.endswith(".")
+
+
+def _unique(items: list[str]) -> list[str]:
+    seen = set()
+    result = []
+    for item in items:
+        cleaned = " ".join(str(item).strip().split())
+        key = cleaned.lower()
+        if cleaned and key not in seen:
+            seen.add(key)
+            result.append(cleaned)
+    return result
 
 #it will make sure, that the parse json has all the valid fields we expect
 def _validate_jd_result(result: dict) -> dict:
