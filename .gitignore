@@ -33,6 +33,7 @@ data/*.log
 data/module_logs/
 data/module_processes.json
 data/profile_photos/
+data/attendance_reviews/
 data/smartcampus.db
 *.sqlite3
 *.db
