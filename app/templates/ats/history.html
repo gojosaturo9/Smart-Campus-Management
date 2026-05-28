@@ -1,0 +1,53 @@
+{% extends "base_dashboard.html" %}
+{% block title %}ATS History - Smart Campus{% endblock %}
+{% block page_heading %}ATS History{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Saved Resume Analyses</h2>
+      <p>Analyses are stored in platform Supabase history for your student account.</p>
+    </div>
+    <a class="secondary-link" href="/ats">New Analysis</a>
+  </div>
+
+  {% if history %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Resume</th>
+            <th>ATS Score</th>
+            <th>Keyword Match</th>
+            <th>Missing Keywords</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in history %}
+            <tr>
+              <td>{{ item.filename }}</td>
+              <td>{{ item.ats_score }}</td>
+              <td>{{ item.keyword_match }}</td>
+              <td>{{ item.missing_keywords|length }}</td>
+              <td>{{ item.created_at }}</td>
+              <td>
+                <div class="button-row no-margin">
+                  <a class="inline-link" href="/ats/history/{{ item.id }}">Open</a>
+                  <a class="inline-link" href="/ats/history/{{ item.id }}/report.pdf">PDF</a>
+                  <form method="post" action="/ats/history/{{ item.id }}/delete">
+                    <button type="submit" class="secondary-button">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No resume analyses saved yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

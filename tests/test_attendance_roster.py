@@ -130,3 +130,89 @@ def test_section_roster_ignores_unverified_and_inactive_students(monkeypatch):
     monkeypatch.setattr(attendance, "rest_select", fake_rest_select)
 
     assert attendance._section_roster("section-a") == []
+
+
+def test_existing_attendance_session_filters_by_time_slot(monkeypatch):
+    captured = {}
+
+    def fake_rest_select(table, query):
+        captured["table"] = table
+        captured["query"] = query
+        return [{"id": "session-1"}]
+
+    monkeypatch.setattr(attendance, "rest_select", fake_rest_select)
+
+    row = attendance._existing_attendance_session(
+        "teacher-1",
+        "subject-1",
+        "section-1",
+        "2026-05-28",
+        "2026-05-28T09:00:00+00:00",
+        "2026-05-28T10:00:00+00:00",
+    )
+
+    assert row["id"] == "session-1"
+    assert captured["table"] == "attendance_sessions"
+    assert captured["query"]["starts_at"] == "eq.2026-05-28T09%3A00%3A00%2B00%3A00"
+    assert captured["query"]["ends_at"] == "eq.2026-05-28T10%3A00%3A00%2B00%3A00"
+
+
+def test_save_reviewed_attendance_allows_automatic_manual_note(monkeypatch):
+    writes = []
+    audits = []
+    monkeypatch.setattr(attendance, "_read_review", lambda token: {
+        "teacher_id": "teacher-1",
+        "subject_id": "subject-1",
+        "section_id": "section-1",
+        "rows": [
+            {
+                "student_id": "student-1",
+                "ai_status": "absent",
+                "name": "Student One",
+            }
+        ],
+    })
+    monkeypatch.setattr(attendance, "_teacher_subject", lambda teacher_id, subject_id: {"id": subject_id})
+    monkeypatch.setattr(attendance, "rest_insert", lambda table, row: writes.append((table, row)) or [{"id": "new-id"}])
+    monkeypatch.setattr(attendance, "_insert_attendance_audit", lambda **kwargs: audits.append(kwargs))
+    monkeypatch.setattr(attendance, "_queue_low_attendance_audits", lambda *args, **kwargs: None)
+    monkeypatch.setattr(attendance, "dispatch_attendance_emails", lambda *args, **kwargs: {"queued": 0})
+    monkeypatch.setattr(attendance, "_delete_review", lambda token: None)
+
+    result = attendance.save_reviewed_attendance(
+        teacher={"id": "teacher-1"},
+        review_token="token-1",
+        final_statuses={"student-1": "present"},
+        correction_reasons={},
+        update_existing=False,
+    )
+
+    assert result.ok
+    assert result.details["manual_corrections"] == 1
+    assert audits[0]["new_value"]["reason"] == "Manual Present"
+
+
+def test_legacy_mark_class_attendance_only_creates_review(monkeypatch):
+    saved = []
+
+    def fake_analyze_class_attendance(**kwargs):
+        return attendance.AttendanceActionResult(
+            True,
+            "AI analysis ready. Review before saving.",
+            details={"review_token": "review-1", "rows": []},
+        )
+
+    monkeypatch.setattr(attendance, "analyze_class_attendance", fake_analyze_class_attendance)
+    monkeypatch.setattr(attendance, "save_reviewed_attendance", lambda **kwargs: saved.append(kwargs))
+
+    result = attendance.mark_class_attendance(
+        teacher={"id": "teacher-1"},
+        subject_id="subject-1",
+        section_id="section-1",
+        image_bytes=b"image",
+        source="camera",
+    )
+
+    assert result.ok
+    assert result.details["review_token"] == "review-1"
+    assert saved == []

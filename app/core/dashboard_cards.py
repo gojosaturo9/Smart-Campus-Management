@@ -14,6 +14,7 @@ class DashboardCard:
 ROLE_DASHBOARD_CARDS = {
     STUDENT: (
         DashboardCard("Attendance", "Status", "Open your attendance portal and review subject records.", "/attendance"),
+        DashboardCard("ATS Resume Scorer", "Analyze", "Score your resume and compare it with job descriptions.", "/ats"),
         DashboardCard("Timetable", "Today", "Review your latest class schedule.", "/timetable"),
         DashboardCard("Events", "Upcoming", "Track campus events and seminar updates.", "/events"),
         DashboardCard("Alumni", "Opportunities", "Find guidance, internships, and career connects.", "/alumni/opportunities"),

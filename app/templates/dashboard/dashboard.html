@@ -93,6 +93,70 @@
 {% endif %}
 
 {% if user.role == "student" %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Attendance Snapshot</h2>
+      <p>Your current saved attendance from platform sessions.</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/student/details">Details</a>
+      <a class="secondary-link" href="/attendance">Open Attendance</a>
+    </div>
+  </div>
+  <div class="summary-grid compact-grid">
+    <article class="summary-card" data-card-tone="{% if dashboard_summary.student_attendance.below_threshold %}warning{% else %}success{% endif %}">
+      <span>Attendance</span>
+      <strong>{{ dashboard_summary.student_attendance.percent or 0 }}%</strong>
+      <small>{{ dashboard_summary.student_attendance.present or 0 }}/{{ dashboard_summary.student_attendance.total or 0 }} present</small>
+    </article>
+    <article class="summary-card" data-card-tone="success">
+      <span>Present</span>
+      <strong>{{ dashboard_summary.student_attendance.present or 0 }}</strong>
+    </article>
+    <article class="summary-card" data-card-tone="warning">
+      <span>Absent</span>
+      <strong>{{ dashboard_summary.student_attendance.absent or 0 }}</strong>
+    </article>
+  </div>
+  {% if dashboard_summary.student_attendance.below_threshold %}
+    <div class="alert">Attendance is below 75%. Check subject-wise records and contact the teacher if a correction is needed.</div>
+  {% endif %}
+  {% if dashboard_summary.student_attendance.subjects %}
+    <div class="analytics-grid">
+      {% for subject in dashboard_summary.student_attendance.subjects %}
+        <article class="summary-card" data-card-tone="{% if subject.low %}warning{% else %}success{% endif %}">
+          <span>{{ subject.subject }}</span>
+          <strong>{{ subject.percent }}%</strong>
+          <small>{{ subject.present }}/{{ subject.total }} present</small>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if dashboard_summary.student_attendance.recent %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dashboard_summary.student_attendance.recent %}
+            <tr>
+              <td>{{ row.date }}</td>
+              <td>{{ row.subject }}</td>
+              <td><span class="status-badge {{ row.status }}">{{ row.status|title }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+
 <section class="summary-grid">
   <article class="summary-card">
     <span>Upcoming events</span>
@@ -113,6 +177,32 @@
 {% endif %}
 
 {% if user.role == "teacher" %}
+{% if request.query_params.get("attendance_session_id") and dashboard_summary.latest_attendance %}
+<section class="panel attendance-receipt-panel">
+  <div class="section-title">
+    <div>
+      <h2>Attendance Saved</h2>
+      <p>{{ dashboard_summary.latest_attendance.subject }} | {{ dashboard_summary.latest_attendance.section }} | {{ dashboard_summary.latest_attendance.date }}</p>
+    </div>
+    <a class="secondary-link" href="/attendance">Take Attendance</a>
+  </div>
+  <div class="summary-grid compact-grid">
+    <article class="summary-card" data-card-tone="success">
+      <span>Present</span>
+      <strong>{{ dashboard_summary.latest_attendance.present }}</strong>
+    </article>
+    <article class="summary-card" data-card-tone="warning">
+      <span>Absent</span>
+      <strong>{{ dashboard_summary.latest_attendance.absent }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Class Attendance</span>
+      <strong>{{ dashboard_summary.teacher_attendance.latest_percent }}</strong>
+    </article>
+  </div>
+</section>
+{% endif %}
+
 <section class="summary-grid">
   <article class="summary-card">
     <span>Teaching profile</span>
@@ -122,14 +212,109 @@
   <article class="summary-card">
     <span>Teaching actions</span>
     <strong>Attendance</strong>
-    <small><a class="inline-link" href="/attendance">Open attendance portal</a></small>
+    <small><a class="inline-link" href="/attendance">Open attendance portal</a> / <a class="inline-link" href="/attendance/teacher/history">history</a></small>
   </article>
   <article class="summary-card">
     <span>Campus events</span>
     <strong>{{ dashboard_summary.upcoming_events|length }}</strong>
     <small><a class="inline-link" href="/events">View events</a></small>
   </article>
+  <article class="summary-card" data-card-tone="{% if dashboard_summary.teacher_attendance.today_pending %}warning{% else %}success{% endif %}">
+    <span>Pending attendance</span>
+    <strong>{{ dashboard_summary.teacher_attendance.today_pending or 0 }}</strong>
+    <small>{{ dashboard_summary.teacher_attendance.today_saved or 0 }} class session(s) saved today</small>
+  </article>
+  <article class="summary-card">
+    <span>Manual corrections</span>
+    <strong>{{ dashboard_summary.teacher_attendance.manual_corrections or 0 }}</strong>
+    <small>Teacher-reviewed changes</small>
+  </article>
 </section>
+
+{% if dashboard_summary.teacher_attendance.pending_entries %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Pending Attendance Today</h2>
+      <p>Classes from today's timetable that do not have a saved attendance session yet.</p>
+    </div>
+    <a class="secondary-link" href="/attendance">Open Attendance</a>
+  </div>
+  <div class="table-wrap dashboard-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Section</th>
+          <th>Subject</th>
+          <th>Room</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in dashboard_summary.teacher_attendance.pending_entries %}
+          <tr>
+            <td>{{ entry.time }}</td>
+            <td>{{ entry.section }}</td>
+            <td>{{ entry.subject_name }}</td>
+            <td>{{ entry.room or "-" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% if dashboard_summary.latest_attendance %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Latest Saved Attendance</h2>
+      <p>{{ dashboard_summary.latest_attendance.subject }} | {{ dashboard_summary.latest_attendance.section }} | {{ dashboard_summary.latest_attendance.date }}</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/teacher/history">History</a>
+      <a class="secondary-link" href="/attendance">Open Attendance</a>
+    </div>
+  </div>
+  <div class="summary-grid compact-grid">
+    <article class="summary-card" data-card-tone="success">
+      <span>Present</span>
+      <strong>{{ dashboard_summary.latest_attendance.present }}</strong>
+    </article>
+    <article class="summary-card" data-card-tone="warning">
+      <span>Absent</span>
+      <strong>{{ dashboard_summary.latest_attendance.absent }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Total Students</span>
+      <strong>{{ dashboard_summary.latest_attendance.total }}</strong>
+    </article>
+  </div>
+  {% if dashboard_summary.latest_attendance.rows %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll</th>
+            <th>Student</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dashboard_summary.latest_attendance.rows %}
+            <tr>
+              <td>{{ row.roll_number }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.status|title }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endif %}
 {% endif %}
 
 {% if user.role == "admin" %}
@@ -148,6 +333,7 @@
   <div class="section-title">
     <h2>Analytics Snapshot</h2>
     <p>Live platform counts from Supabase.</p>
+    <a class="secondary-link" href="/attendance/admin/analytics">Attendance Analytics</a>
   </div>
 
   <div class="analytics-grid">

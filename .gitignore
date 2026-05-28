@@ -9,6 +9,7 @@ data/module_logs/
 data/module_processes.json
 data/smartcampus.db
 data/profile_photos/
+data/attendance_reviews/
 server_*.log
 server_*.err.log
 server_*.out.log

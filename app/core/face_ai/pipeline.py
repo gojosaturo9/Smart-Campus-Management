@@ -29,6 +29,7 @@ def _suppress_native_output():
 
 
 def create_face_embedding(image_np) -> list[float]:
+    _validate_single_face_quality(image_np)
     encodings, total_faces = _encode_faces(image_np)
     if total_faces == 0:
         raise FaceAISetupError("No face was detected. Use a clear front-facing photo.")
@@ -57,6 +58,19 @@ def _encode_faces(image_np, max_size=960) -> tuple[list[np.ndarray], int]:
             descriptor = facerec.compute_face_descriptor(image_np, shape, 1)
         encodings.append(np.asarray(descriptor, dtype=np.float32))
     return encodings, len(faces)
+
+
+def _validate_single_face_quality(image_np, min_face_area_ratio=0.015):
+    image_np = _as_dlib_rgb_image(image_np)
+    image_np = _resize_for_detection(image_np, max_size=960)
+    image_np = _as_dlib_rgb_image(image_np)
+    faces = _filter_duplicate_faces(_detect_faces(image_np, upsample_times=2))
+    if len(faces) != 1:
+        return
+    image_area = max(1, image_np.shape[0] * image_np.shape[1])
+    face_ratio = _face_area(faces[0]) / image_area
+    if face_ratio < min_face_area_ratio:
+        raise FaceAISetupError("Face is too small. Move closer and capture a clearer front-facing photo.")
 
 
 @lru_cache(maxsize=1)

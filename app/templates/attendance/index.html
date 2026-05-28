@@ -7,7 +7,7 @@
   <article class="summary-card">
     <span>Attendance</span>
     <strong>{{ context.percent }}%</strong>
-    <small>{{ context.present }} present out of {{ context.total }} classes</small>
+    <small>{{ context.present }} present out of {{ context.total }} classes{% if context.below_threshold %} / Below 75%{% endif %}</small>
   </article>
   <article class="summary-card">
     <span>Biometric status</span>
@@ -23,6 +23,10 @@
     <small>{% if section.semester %}Sem {{ section.semester }}{% endif %}{% if section.name %} / Sec {{ section.name }}{% endif %}</small>
   </article>
 </section>
+
+{% if context.below_threshold %}
+  <div class="alert">Your attendance is below 75%. Review subject-wise attendance and contact your teacher if a correction is needed.</div>
+{% endif %}
 
 <section class="panel">
   <div class="section-title">
@@ -77,6 +81,51 @@
       <small>Used for timetable and attendance matching.</small>
     </article>
   </div>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Attendance Analytics</h2>
+      <p>Subject-wise and month-wise attendance summary.</p>
+    </div>
+    <a class="secondary-link" href="/attendance/student/details">Full Details</a>
+  </div>
+  <div class="analytics-grid">
+    {% for stat in context.subject_stats %}
+      <article class="summary-card" data-card-tone="{% if stat.low %}warning{% else %}success{% endif %}">
+        <span>{{ stat.subject }}</span>
+        <strong>{{ stat.percent }}%</strong>
+        <small>{{ stat.present }}/{{ stat.total }} present{% if stat.needs_review %} / {{ stat.needs_review }} review{% endif %}</small>
+      </article>
+    {% else %}
+      <p class="muted">No subject-wise attendance yet.</p>
+    {% endfor %}
+  </div>
+  {% if context.monthly_stats %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stat in context.monthly_stats %}
+            <tr>
+              <td>{{ stat.month }}</td>
+              <td>{{ stat.present }}</td>
+              <td>{{ stat.total }}</td>
+              <td>{{ stat.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
 </section>
 
 <section class="panel">
@@ -201,7 +250,7 @@
           </div>
           <input data-face-photo name="class_photo" type="file" accept="image/jpeg" hidden>
         </section>
-        <button type="submit">Capture and Mark</button>
+        <button type="submit">Capture and Analyze</button>
       </form>
 
       <form method="post" action="/attendance/teacher/mark" enctype="multipart/form-data" class="attendance-capture-card">
@@ -215,16 +264,120 @@
           </select>
         </label>
         <label>
-          Upload class photo
-          <input name="class_photo" type="file" accept="image/*" required>
+          Upload class photos
+          <input name="class_photo" type="file" accept="image/*" multiple required>
+          <small>Select 1 to 4 classroom photos. AI will merge matches and remove duplicate students.</small>
         </label>
-        <button type="submit">Upload and Mark</button>
+        <button type="submit">Upload and Analyze</button>
       </form>
     </div>
   {% else %}
     <p class="muted">No published timetable classes found for you. Ask admin to publish the timetable first.</p>
   {% endif %}
 </section>
+
+{% if review %}
+  <section class="attendance-review-modal" data-attendance-review-modal role="alertdialog" aria-modal="true" aria-labelledby="attendance-review-title">
+    <div class="attendance-review-dialog">
+      <div class="attendance-alert-head">
+        <div>
+          <p class="eyebrow">Attendance Review</p>
+          <h2 id="attendance-review-title">Confirm before saving</h2>
+          <p>{{ review.subject }} | {{ review.section }} | {{ review.session_date }}{% if review.slot_label %} | {{ review.slot_label }}{% endif %}</p>
+        </div>
+        <a class="secondary-link" href="/attendance">Cancel</a>
+      </div>
+      <div class="attendance-alert-counts">
+        <article>
+          <span>Total Students</span>
+          <strong data-review-count="total">{{ review.total_students }}</strong>
+        </article>
+        <article>
+          <span>Present</span>
+          <strong data-review-count="present">{{ review.present }}</strong>
+        </article>
+        <article>
+          <span>Absent</span>
+          <strong data-review-count="absent">{{ review.absent }}</strong>
+        </article>
+        <article>
+          <span>AI Review</span>
+          <strong>{{ review.needs_review }}</strong>
+        </article>
+      </div>
+      <div class="attendance-review-summary">
+        <span>{{ review.summary.matched }} roster match{{ "" if review.summary.matched == 1 else "es" }}</span>
+        <span>{{ review.summary.total_faces }} detected face{{ "" if review.summary.total_faces == 1 else "s" }}</span>
+        <span>{{ review.summary.match_percent }}% AI match rate</span>
+      </div>
+      <p class="attendance-alert-copy">AI has prepared the attendance list. Change Present/Absent manually if needed. Attendance will be saved only after confirmation.</p>
+      {% if review.duplicate_message %}
+        <div class="alert">Attendance already exists for this class slot. Tick the update option below only if you want to replace the existing saved attendance.</div>
+      {% endif %}
+      <form method="post" action="/attendance/teacher/confirm" class="attendance-review-form">
+        <input type="hidden" name="review_token" value="{{ review.token }}">
+        {% if review.duplicate_message %}
+          <label class="inline-check">
+            <input type="checkbox" name="update_existing" value="yes" required>
+            Update existing attendance session for this class today
+          </label>
+        {% endif %}
+        <div class="table-wrap attendance-review-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll</th>
+                <th>Student</th>
+                <th>AI Result</th>
+                <th>Confidence</th>
+                <th>Final status</th>
+                <th>Correction note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in review.rows %}
+                {% set initial_status = "present" if row.ai_status == "present" else "absent" %}
+                <tr class="attendance-review-row" data-ai-status="{{ initial_status }}">
+                  <td>{{ row.roll_number }}</td>
+                  <td>
+                    <div class="attendance-student-cell">
+                      <span class="attendance-student-avatar">{{ row.initials or "S" }}</span>
+                      <span>
+                        <strong>{{ row.name }}</strong>
+                        <small>{{ row.note }}</small>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="attendance-state-pill {{ initial_status }}" data-review-ai-pill>
+                      <span class="attendance-state-icon">{% if initial_status == "present" %}&#10003;{% else %}!{% endif %}</span>
+                      <span>{{ "Present" if initial_status == "present" else "Absent" }}</span>
+                    </span>
+                  </td>
+                  <td>{{ row.confidence if row.confidence is not none else "-" }}</td>
+                  <td>
+                    <select name="status_{{ row.student_id }}" data-review-status-select>
+                      <option value="present" {% if initial_status == "present" %}selected{% endif %}>Present</option>
+                      <option value="absent" {% if initial_status == "absent" %}selected{% endif %}>Absent</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="hidden" name="reason_{{ row.student_id }}" value="" data-review-reason>
+                    <span class="manual-note" data-review-manual-note>AI result</span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="button-row">
+          <a class="secondary-link" href="/attendance">Cancel</a>
+          <button type="submit">Confirm and Save Attendance</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endif %}
 
 {% if session_result %}
   <section class="panel">
@@ -302,6 +455,86 @@
     <p class="muted">No subjects found. Add teaching details from My Teaching Profile.</p>
   {% endif %}
 </section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Teacher Reports</h2>
+      <p>Class-wise attendance, low attendance students, and correction audit count.</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/teacher/history">History</a>
+      <a class="secondary-link" href="/attendance/teacher/report.csv">Export CSV</a>
+      <button class="secondary-button" type="button" onclick="window.print()">Export PDF</button>
+    </div>
+  </div>
+  <div class="summary-grid">
+    <article class="summary-card">
+      <span>Manual corrections</span>
+      <strong>{{ context.manual_corrections }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Low attendance students</span>
+      <strong>{{ context.low_attendance|length }}</strong>
+    </article>
+  </div>
+  {% if context.class_reports %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Section</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Review</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.class_reports %}
+            <tr>
+              <td>{{ row.date }}</td>
+              <td>{{ row.subject }}</td>
+              <td>{{ row.section }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.needs_review }}</td>
+              <td>{{ row.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+  {% if context.low_attendance %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll</th>
+            <th>Student</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.low_attendance %}
+            <tr>
+              <td>{{ row.roll_number }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
 {% else %}
 <section class="summary-grid">
   <article class="summary-card">
@@ -316,9 +549,86 @@
     <span>Attendance records</span>
     <strong>{{ context.records }}</strong>
   </article>
+  <article class="summary-card">
+    <span>Needs review</span>
+    <strong>{{ context.needs_review }}</strong>
+  </article>
+  <article class="summary-card">
+    <span>Manual corrections</span>
+    <strong>{{ context.analytics.manual_corrections }}</strong>
+  </article>
+</section>
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Admin Attendance Analytics</h2>
+      <p>Branch, section, teacher activity, and suspicious review counts.</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/admin/analytics">Full Analytics</a>
+      <button class="secondary-button" type="button" onclick="window.print()">Export PDF</button>
+    </div>
+  </div>
+  <div class="summary-grid">
+    <article class="summary-card">
+      <span>Suspicious / review records</span>
+      <strong>{{ context.analytics.suspicious }}</strong>
+    </article>
+  </div>
+  {% if context.analytics.sections %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Section</th>
+            <th>Sessions</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Review</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.analytics.sections %}
+            <tr>
+              <td>{{ row.section }}</td>
+              <td>{{ row.sessions }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.needs_review }}</td>
+              <td>{{ row.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+  {% if context.analytics.teachers %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Teacher</th>
+            <th>Sessions</th>
+            <th>Records</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.analytics.teachers %}
+            <tr>
+              <td>{{ row.teacher }}</td>
+              <td>{{ row.sessions }}</td>
+              <td>{{ row.records }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
 </section>
 {% endif %}
 {% endblock %}
 {% block scripts %}
   <script src="/static/js/live-face-scan.js"></script>
+  <script src="/static/js/attendance-review.js"></script>
 {% endblock %}

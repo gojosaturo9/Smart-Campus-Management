@@ -13,11 +13,15 @@ from dotenv import load_dotenv
 class Settings:
     @property
     def _secrets(self) -> dict:
-        path = self.secrets_file
-        if not path.exists() or tomllib is None:
+        if tomllib is None:
             return {}
-        with path.open("rb") as handle:
-            return tomllib.load(handle)
+        merged: dict = {}
+        for path in self.secrets_files:
+            if not path.exists():
+                continue
+            with path.open("rb") as handle:
+                _deep_merge(merged, tomllib.load(handle))
+        return merged
 
     @property
     def app_dir(self) -> Path:
@@ -34,6 +38,14 @@ class Settings:
     @property
     def secrets_file(self) -> Path:
         return self.platform_dir / "secrets.toml"
+
+    @property
+    def secrets_files(self) -> tuple[Path, ...]:
+        return (
+            self.platform_dir / ".streamlit.toml",
+            self.platform_dir / ".streamlit" / "secrets.toml",
+            self.secrets_file,
+        )
 
     @property
     def app_name(self) -> str:
@@ -131,3 +143,12 @@ class Settings:
 
 settings = Settings()
 load_dotenv(settings.env_file)
+
+
+def _deep_merge(target: dict, source: dict) -> dict:
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            _deep_merge(target[key], value)
+        else:
+            target[key] = value
+    return target

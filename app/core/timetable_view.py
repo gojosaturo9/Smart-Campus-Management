@@ -151,6 +151,7 @@ def _entries(run_id: str) -> list[dict]:
         entries.append(
             {
                 "id": row.get("id"),
+                "subject_id": str(row.get("subject_id") or ""),
                 "section_id": str(row.get("section_id") or ""),
                 "teacher_id": str(row.get("teacher_id") or ""),
                 "day": row.get("day") or slot.get("day") or "",

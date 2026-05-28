@@ -1,0 +1,77 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Attendance Session - Smart Campus{% endblock %}
+{% block page_heading %}Attendance Session{% endblock %}
+{% block content %}
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Date</span>
+    <strong>{{ detail.date }}</strong>
+    <small>{{ detail.subject }}</small>
+  </article>
+  <article class="summary-card">
+    <span>Section</span>
+    <strong>{{ detail.section }}</strong>
+  </article>
+  <article class="summary-card" data-card-tone="success">
+    <span>Present</span>
+    <strong>{{ detail.present }}</strong>
+  </article>
+  <article class="summary-card" data-card-tone="warning">
+    <span>Absent</span>
+    <strong>{{ detail.absent }}</strong>
+  </article>
+  <article class="summary-card">
+    <span>Manual Corrections</span>
+    <strong>{{ detail.manual_corrections }}</strong>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Student Records</h2>
+      <p>{{ detail.subject }} | {{ detail.section }} | {{ detail.date }}</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/teacher/session/{{ detail.id }}/report.csv">Export CSV</a>
+      {% if user.role == "teacher" %}
+        <a class="secondary-link" href="/attendance/teacher/history">Back to History</a>
+      {% else %}
+        <a class="secondary-link" href="/attendance/admin/analytics">Back to Analytics</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if detail.records %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll</th>
+            <th>Student</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Reason / Status</th>
+            <th>Confidence</th>
+            <th>Marked At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in detail.records %}
+            <tr>
+              <td>{{ row.roll_number }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.email }}</td>
+              <td><span class="status-badge {{ row.status }}">{{ row.status|replace("_", " ")|title }}</span></td>
+              <td>{{ row.reason }}</td>
+              <td>{{ row.confidence if row.confidence is not none else "-" }}</td>
+              <td>{{ row.marked_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No student records were found for this session.</p>
+  {% endif %}
+</section>
+{% endblock %}

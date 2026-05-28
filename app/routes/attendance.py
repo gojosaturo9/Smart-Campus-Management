@@ -1,14 +1,32 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from urllib.parse import urlencode
 
 from app.auth.session import get_current_user, require_role, set_login_session
-from app.core.attendance import attendance_context, face_login, mark_class_attendance, register_student, signup_context, teacher_session_result
+from app.core.attendance import (
+    admin_attendance_analytics_context,
+    admin_attendance_analytics_csv,
+    analyze_class_attendance,
+    attendance_context,
+    attendance_review_context,
+    face_login,
+    register_student,
+    save_reviewed_attendance,
+    signup_context,
+    student_attendance_details,
+    student_attendance_report_csv,
+    teacher_attendance_report_csv,
+    teacher_attendance_history,
+    teacher_attendance_history_csv,
+    teacher_attendance_session_csv,
+    teacher_attendance_session_detail,
+    teacher_session_result,
+)
 from app.core.audit import audit_event
 from app.core.profile_photo import save_profile_photo
-from app.core.roles import STUDENT, TEACHER
+from app.core.roles import ADMIN, STUDENT, TEACHER
 from app.core.templates import templates
 
 router = APIRouter(prefix="/attendance")
@@ -22,6 +40,7 @@ def attendance_page(
     message: str = "",
     error: str = "",
     session_id: str = "",
+    review_token: str = "",
     user: dict = Depends(get_current_user),
 ):
     return templates.TemplateResponse(
@@ -31,6 +50,7 @@ def attendance_page(
             "user": user,
             "context": attendance_context(user),
             "session_result": teacher_session_result(user, session_id),
+            "review": attendance_review_context(user, review_token),
             "message": message,
             "error": error,
         },
@@ -60,24 +80,161 @@ async def teacher_mark_attendance_action(
     request: Request,
     class_choice: str = Form(...),
     source: str = Form("upload"),
-    class_photo: UploadFile | None = File(None),
+    class_photo: list[UploadFile] | None = File(None),
     user: dict = Depends(require_role(TEACHER)),
 ):
-    subject_id, section_id = _split_class_choice(class_choice)
-    image_bytes = await class_photo.read() if class_photo and class_photo.filename else None
-    result = mark_class_attendance(
+    subject_id, section_id, slot_label, starts_at, ends_at = _split_class_choice(class_choice)
+    image_bytes_list = []
+    for photo in class_photo or []:
+        if photo and photo.filename:
+            image_bytes_list.append(await photo.read())
+    result = analyze_class_attendance(
         teacher=user,
         subject_id=subject_id,
         section_id=section_id,
-        image_bytes=image_bytes,
+        image_bytes_list=image_bytes_list,
         source=source,
+        slot_label=slot_label,
+        starts_at=starts_at,
+        ends_at=ends_at,
     )
-    audit_event("attendance.teacher_mark", user=user, request=request, ok=result.ok, message=result.message)
-    field = "message" if result.ok else "error"
-    params = {field: result.message}
+    audit_event("attendance.teacher_analyze", user=user, request=request, ok=result.ok, message=result.message)
     if result.ok and result.details:
-        params["session_id"] = str(result.details.get("session_id") or "")
+        params = {"review_token": str(result.details.get("review_token") or "")}
+    else:
+        params = {"error": result.message}
     return RedirectResponse(f"/attendance?{urlencode(params)}", status_code=303)
+
+
+@router.post("/teacher/confirm")
+async def teacher_confirm_attendance_action(
+    request: Request,
+    review_token: str = Form(...),
+    update_existing: str = Form(""),
+    user: dict = Depends(require_role(TEACHER)),
+):
+    form = await request.form()
+    final_statuses = {}
+    correction_reasons = {}
+    for key, value in form.multi_items():
+        if key.startswith("status_"):
+            final_statuses[key.removeprefix("status_")] = str(value)
+        if key.startswith("reason_"):
+            correction_reasons[key.removeprefix("reason_")] = str(value)
+    result = save_reviewed_attendance(
+        teacher=user,
+        review_token=review_token,
+        final_statuses=final_statuses,
+        correction_reasons=correction_reasons,
+        update_existing=update_existing == "yes",
+    )
+    audit_event("attendance.teacher_confirm", user=user, request=request, ok=result.ok, message=result.message)
+    if result.ok and result.details:
+        params = {
+            "message": result.message,
+            "attendance_session_id": str(result.details.get("session_id") or ""),
+        }
+        return RedirectResponse(f"/teacher/dashboard?{urlencode(params)}", status_code=303)
+    else:
+        params = {"error": result.message}
+        params["review_token"] = review_token
+    return RedirectResponse(f"/attendance?{urlencode(params)}", status_code=303)
+
+
+@router.get("/teacher/report.csv")
+def teacher_report_csv(user: dict = Depends(require_role(TEACHER))):
+    return Response(
+        teacher_attendance_report_csv(user),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=attendance-report.csv"},
+    )
+
+
+@router.get("/student/details")
+def student_attendance_details_page(request: Request, user: dict = Depends(require_role(STUDENT))):
+    return templates.TemplateResponse(
+        "attendance/student_details.html",
+        {
+            "request": request,
+            "user": user,
+            "context": student_attendance_details(user),
+        },
+    )
+
+
+@router.get("/student/report.csv")
+def student_attendance_details_csv(user: dict = Depends(require_role(STUDENT))):
+    return Response(
+        student_attendance_report_csv(user),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=student-attendance-report.csv"},
+    )
+
+
+@router.get("/teacher/history")
+def teacher_attendance_history_page(request: Request, user: dict = Depends(require_role(TEACHER))):
+    return templates.TemplateResponse(
+        "attendance/teacher_history.html",
+        {
+            "request": request,
+            "user": user,
+            "context": teacher_attendance_history(user),
+        },
+    )
+
+
+@router.get("/teacher/history.csv")
+def teacher_attendance_history_export(user: dict = Depends(require_role(TEACHER))):
+    return Response(
+        teacher_attendance_history_csv(user),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=teacher-attendance-history.csv"},
+    )
+
+
+@router.get("/teacher/session/{session_id}")
+def teacher_attendance_session_page(request: Request, session_id: str, user: dict = Depends(require_role(TEACHER, ADMIN))):
+    detail = teacher_attendance_session_detail(user, session_id)
+    if not detail:
+        return RedirectResponse(f"/attendance?{urlencode({'error': 'Attendance session was not found.'})}", status_code=303)
+    return templates.TemplateResponse(
+        "attendance/session_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "detail": detail,
+        },
+    )
+
+
+@router.get("/teacher/session/{session_id}/report.csv")
+def teacher_attendance_session_export(session_id: str, user: dict = Depends(require_role(TEACHER, ADMIN))):
+    return Response(
+        teacher_attendance_session_csv(user, session_id),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=attendance-session.csv"},
+    )
+
+
+@router.get("/admin/analytics")
+def admin_attendance_analytics_page(request: Request, user: dict = Depends(require_role(ADMIN))):
+    return templates.TemplateResponse(
+        "attendance/admin_analytics.html",
+        {
+            "request": request,
+            "user": user,
+            "context": admin_attendance_analytics_context(),
+        },
+    )
+
+
+@router.get("/admin/analytics.csv")
+def admin_attendance_analytics_export(user: dict = Depends(require_role(ADMIN))):
+    return Response(
+        admin_attendance_analytics_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=admin-attendance-analytics.csv"},
+    )
 
 
 @router.get("/signup")
@@ -152,8 +309,9 @@ async def face_login_action(request: Request, face_photo: UploadFile | None = Fi
     return RedirectResponse(f"/attendance/face-login?{urlencode({'error': result.message})}", status_code=303)
 
 
-def _split_class_choice(value: str) -> tuple[str, str]:
-    parts = str(value or "").split("|", 1)
-    if len(parts) != 2:
-        return "", ""
-    return parts[0], parts[1]
+def _split_class_choice(value: str) -> tuple[str, str, str, str, str]:
+    parts = str(value or "").split("|")
+    if len(parts) < 2:
+        return "", "", "", "", ""
+    parts += [""] * (5 - len(parts))
+    return parts[0], parts[1], parts[2], parts[3], parts[4]

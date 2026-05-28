@@ -1,0 +1,127 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Attendance Details - Smart Campus{% endblock %}
+{% block page_heading %}Attendance Details{% endblock %}
+{% block content %}
+<section class="summary-grid">
+  <article class="summary-card" data-card-tone="{% if context.below_threshold %}warning{% else %}success{% endif %}">
+    <span>Overall Attendance</span>
+    <strong>{{ context.percent }}%</strong>
+    <small>{{ context.present }} present out of {{ context.total }} classes</small>
+  </article>
+  <article class="summary-card" data-card-tone="success">
+    <span>Present</span>
+    <strong>{{ context.present }}</strong>
+  </article>
+  <article class="summary-card" data-card-tone="warning">
+    <span>Absent</span>
+    <strong>{{ context.absent }}</strong>
+  </article>
+  <article class="summary-card">
+    <span>Review Status</span>
+    <strong>{{ context.needs_review }}</strong>
+    <small>Records needing review</small>
+  </article>
+</section>
+
+{% if context.below_threshold %}
+  <div class="alert">Your attendance is below 75%. Check subject-wise records and contact your teacher if a saved record needs correction.</div>
+{% endif %}
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Subject-Wise Percentage</h2>
+      <p>Python-calculated attendance percentage from saved platform attendance records.</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/student/report.csv">Download Report</a>
+      <button class="secondary-button" type="button" onclick="window.print()">Export PDF</button>
+    </div>
+  </div>
+  <div class="analytics-grid">
+    {% for stat in context.subject_stats %}
+      <article class="summary-card" data-card-tone="{% if stat.low %}warning{% else %}success{% endif %}">
+        <span>{{ stat.subject }}</span>
+        <strong>{{ stat.percent }}%</strong>
+        <small>{{ stat.present }}/{{ stat.total }} present{% if stat.needs_review %} / {{ stat.needs_review }} review{% endif %}</small>
+      </article>
+    {% else %}
+      <p class="muted">No subject-wise attendance records yet.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Date-Wise Records</h2>
+      <p>Every saved attendance record with status and reason.</p>
+    </div>
+  </div>
+  {% if context.record_rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Reason / Status</th>
+            <th>Confidence</th>
+            <th>Marked At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.record_rows %}
+            <tr>
+              <td>{{ row.date }}</td>
+              <td>{{ row.subject }}</td>
+              <td><span class="status-badge {{ row.status }}">{{ row.status|replace("_", " ")|title }}</span></td>
+              <td>{{ row.reason }}</td>
+              <td>{{ row.confidence if row.confidence is not none else "-" }}</td>
+              <td>{{ row.marked_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No attendance records have been saved yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Month-Wise Trend</h2>
+      <p>Attendance trend grouped by month.</p>
+    </div>
+  </div>
+  {% if context.monthly_stats %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Present</th>
+            <th>Total</th>
+            <th>Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stat in context.monthly_stats %}
+            <tr>
+              <td>{{ stat.month }}</td>
+              <td>{{ stat.present }}</td>
+              <td>{{ stat.total }}</td>
+              <td>{{ stat.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No monthly attendance trend is available yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -4,7 +4,6 @@ from urllib.parse import quote
 
 from app.auth.session import get_current_user
 from app.core.audit import audit_event
-from app.core.ats_integration import get_ats_summary
 from app.core.module_processes import (
     get_process_status,
     read_log_tail,
@@ -56,6 +55,11 @@ def module_page(
                 status_code=status.HTTP_303_SEE_OTHER,
                 headers={"Location": "/attendance"},
             )
+        if module_key == "ats-resume":
+            raise HTTPException(
+                status_code=status.HTTP_303_SEE_OTHER,
+                headers={"Location": "/ats"},
+            )
         if module_key == "timetable" and role != ADMIN:
             raise HTTPException(
                 status_code=status.HTTP_303_SEE_OTHER,
@@ -73,9 +77,7 @@ def module_page(
                 "user": user,
                 "module": module,
                 "process_status": get_process_status(module),
-                "ats_summary": get_ats_summary(request.session.get("supabase_access_token", ""))
-                if module_key == "ats-resume"
-                else None,
+                "ats_summary": None,
                 "notes_summary": get_notes_summary() if module_key == "notes-to-test" else None,
                 "message": request.query_params.get("message", ""),
                 "error": request.query_params.get("error", ""),

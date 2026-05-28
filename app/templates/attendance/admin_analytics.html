@@ -1,0 +1,161 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Attendance Analytics - Smart Campus{% endblock %}
+{% block page_heading %}Attendance Analytics{% endblock %}
+{% block content %}
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Students</span>
+    <strong>{{ context.summary.students or 0 }}</strong>
+    <small>{{ context.summary.verified_students or 0 }} face verified</small>
+  </article>
+  <article class="summary-card">
+    <span>Sessions</span>
+    <strong>{{ context.summary.sessions or 0 }}</strong>
+  </article>
+  <article class="summary-card" data-card-tone="success">
+    <span>Overall Attendance</span>
+    <strong>{{ context.summary.percent or 0 }}%</strong>
+    <small>{{ context.summary.present or 0 }}/{{ context.summary.total or 0 }} present</small>
+  </article>
+  <article class="summary-card" data-card-tone="warning">
+    <span>Absent / Review</span>
+    <strong>{{ context.summary.absent or 0 }}</strong>
+    <small>{{ context.summary.needs_review or 0 }} needs review</small>
+  </article>
+  <article class="summary-card">
+    <span>Manual Corrections</span>
+    <strong>{{ context.summary.manual_corrections or 0 }}</strong>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Teacher Attendance Analytics</h2>
+      <p>Saved sessions and attendance quality by teacher.</p>
+    </div>
+    <div class="button-row no-margin">
+      <a class="secondary-link" href="/attendance/admin/analytics.csv">Export CSV</a>
+      <button class="secondary-button" type="button" onclick="window.print()">Export PDF</button>
+    </div>
+  </div>
+  {% if context.teachers %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Teacher</th>
+            <th>Sessions</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Review</th>
+            <th>Total</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.teachers %}
+            <tr>
+              <td>{{ row.teacher }}</td>
+              <td>{{ row.sessions }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.absent }}</td>
+              <td>{{ row.needs_review }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No teacher attendance data is available yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Student Attendance Analytics</h2>
+      <p>Lowest attendance students appear first for admin review.</p>
+    </div>
+  </div>
+  {% if context.students %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll</th>
+            <th>Student</th>
+            <th>Email</th>
+            <th>Biometric</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Review</th>
+            <th>Total</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.students %}
+            <tr>
+              <td>{{ row.roll_number }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.email }}</td>
+              <td>{{ row.biometric_status }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.absent }}</td>
+              <td>{{ row.needs_review }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No student attendance data is available yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Section Analytics</h2>
+      <p>Attendance percentage by section for branch-level monitoring.</p>
+    </div>
+  </div>
+  {% if context.sections %}
+    <div class="table-wrap dashboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Section</th>
+            <th>Sessions</th>
+            <th>Present</th>
+            <th>Absent</th>
+            <th>Review</th>
+            <th>Total</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in context.sections %}
+            <tr>
+              <td>{{ row.section }}</td>
+              <td>{{ row.sessions }}</td>
+              <td>{{ row.present }}</td>
+              <td>{{ row.absent }}</td>
+              <td>{{ row.needs_review }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.percent }}%</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No section attendance data is available yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1050,6 +1050,199 @@ Next start point after login/resume:
 6. Chatbot/helpdesk is only planned in README for now; start it only when explicitly requested.
 ```
 
+## Current Progress - Attendance Review, Manual Correction, And Mail - 2026-05-28
+
+Teacher attendance flow was updated to prevent automatic DB saves after photo capture.
+
+Implemented:
+
+- Teacher class photo capture/upload now runs AI face matching first and creates a temporary review only.
+- Attendance is saved to Supabase only after the teacher clicks `Confirm and Save Attendance`.
+- Alert-style attendance confirmation popup was added on the platform page.
+- Popup shows:
+  - Total students
+  - Present count
+  - Absent count
+  - AI review count
+- Teacher can manually change each student final status between `Present` and `Absent` before confirm.
+- Present/Absent counters update live in the popup when teacher changes a dropdown.
+- Low-confidence AI matches are shown as AI review, but teacher makes the final Present/Absent decision.
+- Manual correction audit is saved in `attendance_audit_logs`.
+- Multiple class photos are supported, with AI matches merged across photos.
+- Duplicate session prevention was added for teacher + subject + section + date + time slot.
+- Student analytics were added:
+  - Subject-wise attendance
+  - Month-wise attendance
+  - Below 75% warning
+- Teacher reports were added:
+  - Class-wise attendance
+  - Low-attendance students
+  - Manual correction count
+  - CSV export
+- TruePresence-style attendance email behavior was ported to the platform:
+  - After confirm/save, each student with a valid email gets a background attendance update email.
+  - Email logs are written to `email_logs` when the table exists.
+  - SMTP settings are documented in `secrets.toml.example`.
+
+Important behavior:
+
+```text
+Capture/Upload photo -> AI matching -> Popup review -> Teacher edits Present/Absent -> Confirm and Save -> Supabase records + emails
+```
+
+Verification:
+
+```text
+.\.venv\Scripts\python.exe -m pytest tests -> 15 passed
+.\.venv\Scripts\python.exe -m compileall app -> passed
+Updated local server -> http://127.0.0.1:9004
+```
+
+Files added/updated for this work:
+
+- `app/core/attendance.py`
+- `app/core/attendance_email.py`
+- `app/routes/attendance.py`
+- `app/templates/attendance/index.html`
+- `app/static/js/attendance-review.js`
+- `app/static/css/styles.css`
+- `supabase/schema.sql`
+- `supabase/attendance_review_status.sql`
+- `secrets.toml.example`
+- `tests/test_attendance_roster.py`
+
+### Supabase Changes Required
+
+Yes, Supabase changes are required if the live database was created before this attendance-review work.
+
+Run this file in Supabase SQL Editor:
+
+```text
+platform/supabase/attendance_review_status.sql
+```
+
+It applies:
+
+- `attendance_records.status` now allows `needs_review`.
+- Unique duplicate-prevention index on `attendance_sessions`:
+  - `teacher_id`
+  - `subject_id`
+  - `section_id`
+  - `session_date`
+  - `starts_at`
+  - `ends_at`
+- `email_logs` table for attendance mail tracking.
+- Indexes on `email_logs`.
+
+SMTP config is also needed for actual email sending. Add values in `platform/secrets.toml` under `[email]`, for example:
+
+```toml
+[email]
+smtp_host = "smtp.gmail.com"
+smtp_tls_port = "587"
+smtp_ssl_port = "465"
+smtp_send_mode = "tls"
+smtp_user = "your-email@example.com"
+smtp_pass = "your-email-app-password"
+smtp_from = "your-email@example.com"
+smtp_max_retries = "3"
+```
+
+## Current Progress - Attendance Popup And Dashboard Polish - 2026-05-28
+
+Attendance UI and dashboard reporting were improved after the first review-popup implementation.
+
+Implemented:
+
+- Old duplicate platform servers on ports `9000` and `9004` were stopped.
+- Latest platform server is running on:
+
+```text
+http://127.0.0.1:9005/login
+```
+
+- Attendance review popup now shows a richer AI summary:
+  - Total students
+  - Present count
+  - Absent count
+  - AI review count
+  - Roster matches
+  - Detected faces
+  - AI match rate
+- Popup rows now show compact student initials avatars.
+- Present students are shown with green styling and a tick mark.
+- Absent students are shown with red styling.
+- When the teacher manually changes a status, row color updates live:
+  - Absent to Present becomes green and stores `Manual Present`
+  - Present to Absent becomes red and stores `Manual Absent`
+- The earlier optional correction dropdown was removed.
+- Manual correction note is now generated automatically and saved in the hidden form field/audit payload.
+- Duplicate attendance session warning text is clearer and explains when to update an existing session.
+- Teacher confirmation now redirects to the teacher dashboard with an attendance receipt panel.
+- Teacher dashboard now shows:
+  - Attendance saved receipt after confirm
+  - Latest saved attendance
+  - Present, absent, and class attendance percent
+  - Pending attendance classes for today
+  - Saved sessions today
+  - Manual correction count
+- Student dashboard now shows:
+  - Attendance percentage
+  - Present count
+  - Absent count
+  - Below 75% warning
+  - Subject-wise attendance cards
+  - Recent attendance records
+- Timetable entries now include `subject_id` so teacher pending-attendance detection can compare today's timetable against saved attendance sessions.
+
+Files updated:
+
+```text
+platform/app/core/attendance.py
+platform/app/core/dashboard_summary.py
+platform/app/core/timetable_view.py
+platform/app/templates/attendance/index.html
+platform/app/templates/dashboard/dashboard.html
+platform/app/static/js/attendance-review.js
+platform/app/static/css/styles.css
+platform/tests/test_attendance_roster.py
+```
+
+Verification:
+
+```text
+.\.venv\Scripts\python.exe -m pytest tests/test_attendance_roster.py tests/test_rbac.py -q -> 9 passed
+.\.venv\Scripts\python.exe -m compileall app tests -> passed
+/login smoke test on http://127.0.0.1:9005/login -> 200 OK
+Only port 9005 is listening for the platform server.
+```
+
+Current behavior:
+
+```text
+Capture/Upload photo
+-> AI face analysis
+-> Alert-style review popup
+-> Teacher changes Present/Absent if needed
+-> Manual note is auto-generated
+-> Confirm and Save Attendance
+-> Supabase attendance records + audit logs + email dispatch
+-> Teacher dashboard receipt and latest attendance summary
+```
+
+Next start point:
+
+```text
+1. Open http://127.0.0.1:9005/login.
+2. Log in as teacher.
+3. Open Attendance.
+4. Capture/upload a class photo.
+5. Confirm the popup appears with green/red rows and automatic manual notes.
+6. Confirm and verify the teacher dashboard receipt.
+7. Log in as student and verify Attendance Snapshot on the dashboard.
+8. Mail setup is planned for later; configure SMTP only when ready.
+```
+
 ## Development Rules
 
 - Keep all new unified-platform work inside `platform/` unless instructed otherwise.
@@ -1074,11 +1267,11 @@ Then run the platform:
 
 ```powershell
 cd C:\Users\anike\OneDrive\Desktop\SmartCampus\platform
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 9000
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 9005
 ```
 
 Open:
 
 ```text
-http://127.0.0.1:9000
+http://127.0.0.1:9005
 ```

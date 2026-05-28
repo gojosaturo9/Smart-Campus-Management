@@ -1,0 +1,258 @@
+{% extends "base_dashboard.html" %}
+{% block title %}ATS Resume Scorer - Smart Campus{% endblock %}
+{% block page_heading %}ATS Resume Scorer{% endblock %}
+{% block content %}
+{% if error %}<div class="alert">{{ error }}</div>{% endif %}
+{% if success %}<div class="notice">{{ success }}</div>{% endif %}
+
+<section class="panel ats-workspace">
+  <div class="section-title">
+    <div>
+      <h2>Resume Analysis</h2>
+      <p>Upload a PDF, DOC, or DOCX resume and run the internal ATS pipeline.</p>
+    </div>
+    <a class="secondary-link" href="/ats/history">History</a>
+  </div>
+
+  <form method="post" action="/ats/analyze" enctype="multipart/form-data" class="ats-form">
+    <div class="form-grid">
+      <label>
+        Resume file
+        <input type="file" name="resume" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+      </label>
+      <label>
+        Analysis mode
+        <select name="analysis_mode">
+          <option value="general" {% if form.analysis_mode != "jd" %}selected{% endif %}>General ATS Score</option>
+          <option value="jd" {% if form.analysis_mode == "jd" %}selected{% endif %}>Job Description Comparison</option>
+        </select>
+      </label>
+    </div>
+    <label>
+      Job description
+      <textarea name="job_description" placeholder="Paste a job description for keyword and semantic matching.">{{ form.job_description }}</textarea>
+    </label>
+    <div class="button-row">
+      <button type="submit">Analyze Resume</button>
+      <a class="secondary-link" href="/student/dashboard">Back to Dashboard</a>
+    </div>
+  </form>
+</section>
+
+{% if result %}
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Analysis Result</h2>
+      <p>{% if history_item %}{{ history_item.filename }} | {{ history_item.created_at }}{% else %}Latest uploaded resume{% endif %}</p>
+    </div>
+    <div class="button-row no-margin">
+      {% if analysis_id %}
+        <a class="secondary-link" href="/ats/history/{{ analysis_id }}/report.pdf">PDF</a>
+      {% else %}
+        <form method="post" action="/ats/report.pdf">
+          <input type="hidden" name="analysis_json" value="{{ analysis_json|forceescape }}">
+          <button type="submit" class="secondary-button">PDF</button>
+        </form>
+      {% endif %}
+      <a class="secondary-link" href="/ats/history">History</a>
+    </div>
+  </div>
+
+  <div class="summary-grid compact-grid">
+    <article class="summary-card" data-card-tone="{% if result.ats_score >= 75 %}success{% elif result.ats_score >= 55 %}warning{% else %}danger{% endif %}">
+      <span>ATS Score</span>
+      <strong>{{ result.ats_score or result.ATS_score or 0 }}%</strong>
+      <small>{{ result.interpretation }}</small>
+    </article>
+    <article class="summary-card">
+      <span>Keyword Match</span>
+      <strong>{{ result.keyword_match or 0 }}%</strong>
+      <small>{{ result.matched_keywords|length }} matched keywords</small>
+    </article>
+    <article class="summary-card">
+      <span>Skills</span>
+      <strong>{{ result.skills|length }}</strong>
+      <small>{{ result.skill_validation_details.validation_pct or 0 }}% validated</small>
+    </article>
+  </div>
+
+  {% if result.component_scores %}
+  <div class="ats-score-grid">
+    {% for label, value in result.component_scores.items() %}
+      <article class="summary-card">
+        <span>{{ label|replace("_", " ")|title }}</span>
+        <strong>{{ value }}</strong>
+      </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+{% if result.jd_match_analysis or result.jd_comparison %}
+{% set jd = result.jd_match_analysis or result.jd_comparison %}
+<section class="panel">
+  <div class="section-title">
+    <h2>JD Comparison</h2>
+    <p>Keyword and semantic matching against the provided job description.</p>
+  </div>
+  <div class="summary-grid compact-grid">
+    <article class="summary-card">
+      <span>Match</span>
+      <strong>{{ jd.match_percentage }}%</strong>
+    </article>
+    <article class="summary-card">
+      <span>Semantic similarity</span>
+      <strong>{{ jd.semantic_similarity }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Skills gap</span>
+      <strong>{{ jd.skills_gap|length }}</strong>
+    </article>
+  </div>
+  <div class="ats-keyword-columns">
+    <div>
+      <h3>Matched Keywords</h3>
+      <div class="badge-row">
+        {% for keyword in jd.matched_keywords %}
+          <span class="status-badge present">{{ keyword }}</span>
+        {% else %}
+          <span class="muted">No matched keywords found.</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h3>Missing Keywords</h3>
+      <div class="badge-row">
+        {% for keyword in jd.missing_keywords %}
+          <span class="status-badge absent">{{ keyword }}</span>
+        {% else %}
+          <span class="muted">No missing keywords found.</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="section-title">
+    <h2>Feedback</h2>
+    <p>Issues, strengths, and recommendations generated from the analysis.</p>
+  </div>
+  {% if result.issues_summary %}
+    <div class="ats-list">
+      {% for issue in result.issues_summary %}
+        <article class="summary-card" data-card-tone="warning">
+          <span>Issue</span>
+          <strong>{{ issue }}</strong>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if result.detailed_feedback %}
+    <div class="ats-feedback-list">
+      {% for item in result.detailed_feedback %}
+        <article class="summary-card">
+          <span>{{ item.severity_level }}</span>
+          <strong>{{ item.issue_title }}</strong>
+          <small>{{ item.explanation }}</small>
+          <div class="detail-strip">
+            <div><span>Where</span><small>{{ item.where_it_appears }}</small></div>
+            <div><span>Fix</span><small>{{ item.how_to_fix }}</small></div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if result.strengths %}
+    <h3>Strengths</h3>
+    <div class="badge-row">
+      {% for strength in result.strengths %}
+        <span class="status-badge present">{{ strength }}</span>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+{% if result.skill_validation_details %}
+<section class="panel">
+  <div class="section-title">
+    <h2>Skill Validation</h2>
+    <p>Skills backed by projects or experience evidence.</p>
+  </div>
+  <div class="summary-grid compact-grid">
+    <article class="summary-card">
+      <span>Validated</span>
+      <strong>{{ result.skill_validation_details.validated_count }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Total</span>
+      <strong>{{ result.skill_validation_details.total }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Validation</span>
+      <strong>{{ result.skill_validation_details.validation_pct }}%</strong>
+    </article>
+  </div>
+  <div class="ats-keyword-columns">
+    <div>
+      <h3>Validated Skills</h3>
+      <div class="badge-row">
+        {% for item in result.skill_validation_details.validated %}
+          <span class="status-badge present">{{ item.skill }}</span>
+        {% else %}
+          <span class="muted">No validated skills found.</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h3>Needs Evidence</h3>
+      <div class="badge-row">
+        {% for skill in result.skill_validation_details.unvalidated %}
+          <span class="status-badge pending">{{ skill }}</span>
+        {% else %}
+          <span class="muted">No unvalidated skills found.</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endif %}
+
+{% if history %}
+<section class="panel">
+  <div class="section-title">
+    <h2>Recent ATS History</h2>
+    <a class="secondary-link" href="/ats/history">View All</a>
+  </div>
+  <div class="table-wrap dashboard-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Resume</th>
+          <th>Score</th>
+          <th>Keyword Match</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in history %}
+          <tr>
+            <td>{{ item.filename }}</td>
+            <td>{{ item.ats_score }}</td>
+            <td>{{ item.keyword_match }}</td>
+            <td>{{ item.created_at }}</td>
+            <td><a class="inline-link" href="/ats/history/{{ item.id }}">Open</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

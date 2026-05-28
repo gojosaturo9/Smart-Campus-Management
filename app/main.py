@@ -10,6 +10,7 @@ from app.routes.dashboard import router as dashboard_router
 from app.routes.admin import router as admin_router
 from app.routes.alumni import router as alumni_router
 from app.routes.attendance import router as attendance_router
+from app.routes.ats import router as ats_router
 from app.routes.events import router as events_router
 from app.routes.modules import router as modules_router
 from app.routes.profile import router as profile_router
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router)
     app.include_router(alumni_router)
     app.include_router(attendance_router)
+    app.include_router(ats_router)
     app.include_router(events_router)
     app.include_router(modules_router)
     app.include_router(profile_router)
