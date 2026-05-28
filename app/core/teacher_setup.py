@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from app.core.rgpv_catalog import BRANCHES, DEPARTMENTS, SUBJECTS, academic_years, branch_by_code, department_by_code, subject_by_code
 from app.core.supabase_client import SupabaseError, eq, rest_insert, rest_select, rest_update
 
 
@@ -26,6 +27,12 @@ def teacher_setup_context(user: dict) -> dict:
         "departments": departments,
         "branches": branches,
         "sections": sections,
+        "catalog_departments": DEPARTMENTS,
+        "catalog_branches": BRANCHES,
+        "catalog_subjects": SUBJECTS,
+        "academic_years": academic_years(),
+        "semesters": list(range(1, 9)),
+        "section_names": ["A", "B", "C", "D"],
         "subjects": [
             {
                 **subject,
@@ -74,11 +81,14 @@ def save_teacher_subject(
     academic_year: str,
 ) -> tuple[bool, str]:
     clean_subject_code = _code(subject_code, 24)
-    clean_subject_name = subject_name.strip()
-    clean_department_name = department_name.strip()
+    catalog_subject = subject_by_code(clean_subject_code)
+    clean_subject_name = (catalog_subject or {}).get("name") or subject_name.strip()
     clean_department_code = _code(department_code or department_name, 16)
-    clean_branch_name = branch_name.strip()
     clean_branch_code = _code(branch_code or branch_name, 16)
+    catalog_department = department_by_code(clean_department_code)
+    catalog_branch = branch_by_code(clean_branch_code)
+    clean_department_name = (catalog_department or {}).get("name") or department_name.strip()
+    clean_branch_name = (catalog_branch or {}).get("name") or branch_name.strip()
     clean_section_name = (section_name.strip() or "A").upper()
     clean_academic_year = academic_year.strip() or "2026-27"
     semester_value = _to_int(semester)

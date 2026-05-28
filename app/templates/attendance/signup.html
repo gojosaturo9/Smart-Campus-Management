@@ -4,13 +4,9 @@
 <main class="login-shell">
   <section class="login-panel">
     <p class="eyebrow">AI Attendance</p>
-    <h1>{% if pending_face %}New Student Registration{% else %}Student Face Signup{% endif %}</h1>
+    <h1>Student Face Signup</h1>
     <p class="muted">
-      {% if pending_face %}
-        Face not recognized. Complete registration below with the captured live scan.
-      {% else %}
-        Create your student account with a live camera face scan.
-      {% endif %}
+      Create your student account with a live camera face scan.
     </p>
 
     {% if message %}
@@ -80,23 +76,19 @@
         Academic year
         <input name="academic_year" type="text" value="{{ context.default_academic_year }}" required>
       </label>
-      {% if pending_face %}
-        <div class="notice">Live face scan is ready. Complete the form to create your account.</div>
-      {% else %}
-        <section class="face-scan" data-live-face-scan data-processing-status="Creating your profile and encoding biometrics...">
-          <div class="face-scan-head">
-            <strong>Live face scan</strong>
-            <span data-scan-status>Camera not started</span>
-          </div>
-          <div class="face-camera-frame">
-            <video data-scan-video autoplay playsinline muted></video>
-            <img data-captured-preview alt="Captured face preview" hidden>
-            <canvas data-scan-canvas hidden></canvas>
-            <div class="face-guide" aria-hidden="true"></div>
-          </div>
-          <input data-face-photo name="face_photo" type="file" accept="image/jpeg" hidden>
-        </section>
-      {% endif %}
+      <section class="face-scan" data-live-face-scan data-processing-status="Creating your profile and encoding biometrics...">
+        <div class="face-scan-head">
+          <strong>Live face scan</strong>
+          <span data-scan-status>Camera not started</span>
+        </div>
+        <div class="face-camera-frame">
+          <video data-scan-video autoplay playsinline muted></video>
+          <img data-captured-preview alt="Captured face preview" hidden>
+          <canvas data-scan-canvas hidden></canvas>
+          <div class="face-guide" aria-hidden="true"></div>
+        </div>
+        <input data-face-photo name="face_photo" type="file" accept="image/jpeg" hidden>
+      </section>
       <button type="submit">Create Account</button>
     </form>
 

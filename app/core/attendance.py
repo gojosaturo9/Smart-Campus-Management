@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from app.core.face_bridge import create_face_embedding, match_face
+from app.core.face_bridge import create_face_embedding, find_embedding_match, match_class_faces, match_face
 from app.core.roles import ADMIN, STUDENT, TEACHER
 from app.core.supabase_client import (
     SupabaseError,
@@ -15,12 +15,17 @@ from app.core.supabase_client import (
 from app.core.users import get_user_by_id
 
 
+FACE_ENROLLMENT_DUPLICATE_THRESHOLD = 0.50
+FACE_ENROLLMENT_DUPLICATE_GAP = 0.03
+
+
 @dataclass(frozen=True)
 class AttendanceActionResult:
     ok: bool
     message: str
     user: dict | None = None
     face_embedding: list[float] | None = None
+    details: dict | None = None
 
 
 def attendance_context(user: dict) -> dict:
@@ -31,6 +36,57 @@ def attendance_context(user: dict) -> dict:
     if user["role"] == ADMIN:
         return _admin_context()
     return {"title": "Attendance", "items": []}
+
+
+def teacher_session_result(user: dict, session_id: str) -> dict:
+    if not session_id or user.get("role") != TEACHER:
+        return {}
+    try:
+        sessions = rest_select(
+            "attendance_sessions",
+            {
+                "select": "id,subject_id,section_id,session_date,subjects(code,name),sections(name,semester,branches(name,code),departments(name,code))",
+                "id": eq(session_id),
+                "teacher_id": eq(user["id"]),
+                "limit": "1",
+            },
+        )
+    except SupabaseError:
+        return {}
+    if not sessions:
+        return {}
+    try:
+        records = rest_select(
+            "attendance_records",
+            {"select": "student_id,status,confidence,attendance_students(roll_number,profile_id)", "session_id": eq(session_id), "order": "status.desc"},
+        )
+        profiles = {str(row["id"]): row for row in rest_select("profiles", {"select": "id,full_name,email"})}
+    except SupabaseError:
+        records = []
+        profiles = {}
+    rows = []
+    for record in records:
+        attendance_student = record.get("attendance_students") or {}
+        profile = profiles.get(str(attendance_student.get("profile_id") or ""), {})
+        rows.append(
+            {
+                "name": profile.get("full_name") or profile.get("email") or "-",
+                "roll_number": attendance_student.get("roll_number") or "-",
+                "status": record.get("status") or "-",
+                "confidence": record.get("confidence"),
+            }
+        )
+    session = sessions[0]
+    subject = session.get("subjects") or {}
+    section = session.get("sections") or {}
+    return {
+        "subject": f"{subject.get('code') or ''} {subject.get('name') or ''}".strip(),
+        "section": _section_display(section),
+        "date": session.get("session_date") or "",
+        "present": len([row for row in rows if row["status"] == "present"]),
+        "absent": len([row for row in rows if row["status"] == "absent"]),
+        "rows": rows,
+    }
 
 
 def signup_context() -> dict:
@@ -64,7 +120,6 @@ def register_student(
     section_name: str,
     academic_year: str,
     face_bytes: bytes | None,
-    face_embedding: list[float] | None = None,
 ) -> AttendanceActionResult:
     clean_name = name.strip()
     clean_email = email.strip().lower()
@@ -78,16 +133,28 @@ def register_student(
         return AttendanceActionResult(False, "Department, branch, semester, section, and academic year are required.")
     if len(password) < 8:
         return AttendanceActionResult(False, "Password must be at least 8 characters.")
-    if not face_bytes and not face_embedding:
+    if not face_bytes:
         return AttendanceActionResult(False, "Live face scan is required to create a student attendance account.")
 
-    if face_embedding:
-        enrolled_embedding = face_embedding
-    else:
-        face_result = create_face_embedding(face_bytes or b"")
-        if not face_result.ok or not face_result.embedding:
-            return AttendanceActionResult(False, f"Face enrollment failed: {face_result.message}")
-        enrolled_embedding = face_result.embedding
+    face_result = create_face_embedding(face_bytes or b"")
+    if not face_result.ok or not face_result.embedding:
+        return AttendanceActionResult(False, f"Face enrollment failed: {face_result.message}")
+    enrolled_embedding = face_result.embedding
+
+    try:
+        existing_students = rest_select("attendance_students", {"select": "profile_id,face_embedding"})
+    except SupabaseError as exc:
+        return AttendanceActionResult(False, str(exc))
+    if find_embedding_match(
+        enrolled_embedding,
+        existing_students,
+        threshold=FACE_ENROLLMENT_DUPLICATE_THRESHOLD,
+        match_gap=FACE_ENROLLMENT_DUPLICATE_GAP,
+    ):
+        return AttendanceActionResult(
+            False,
+            "This face is already enrolled for another student. Use face login or scan the correct new student.",
+        )
 
     try:
         section = _get_or_create_student_section(department_id, branch_id, clean_section, semester_value, clean_academic_year)
@@ -148,6 +215,7 @@ def _student_context(user: dict) -> dict:
     profile = _student_profile(user["id"])
     attendance_student = _attendance_student(user["id"])
     records = _attendance_records_for_student(attendance_student.get("id") if attendance_student else "")
+    section_id = str((profile or {}).get("section_id") or (attendance_student or {}).get("section_id") or "")
     present = sum(1 for row in records if row.get("status") == "present")
     total = len(records)
     percent = round((present / total) * 100, 1) if total else 0
@@ -155,6 +223,8 @@ def _student_context(user: dict) -> dict:
         "title": "My Attendance",
         "profile": profile,
         "attendance_student": attendance_student,
+        "section": profile.get("sections") or {},
+        "subjects": _student_subjects(section_id),
         "records": records,
         "present": present,
         "total": total,
@@ -169,9 +239,101 @@ def _teacher_context(user: dict) -> dict:
     )
     sessions = rest_select(
         "attendance_sessions",
-        {"select": "id,subject_id,section_id,session_date,status", "teacher_id": eq(user["id"]), "order": "session_date.desc", "limit": "20"},
+        {"select": "id,subject_id,section_id,session_date,status,subjects(code,name),sections(name,semester,branches(name,code),departments(name,code))", "teacher_id": eq(user["id"]), "order": "session_date.desc", "limit": "20"},
     )
-    return {"title": "Attendance Classes", "subjects": subjects, "sessions": sessions}
+    return {"title": "Attendance Classes", "subjects": subjects, "sessions": sessions, "classes": _teacher_timetable_classes(user)}
+
+
+def mark_class_attendance(
+    *,
+    teacher: dict,
+    subject_id: str,
+    section_id: str,
+    image_bytes: bytes | None,
+    source: str,
+) -> AttendanceActionResult:
+    if not image_bytes:
+        return AttendanceActionResult(False, "Class photo is required.")
+    if not subject_id or not section_id:
+        return AttendanceActionResult(False, "Select a timetable class first.")
+
+    subject = _teacher_subject(teacher["id"], subject_id)
+    if not subject:
+        return AttendanceActionResult(False, "Selected subject is not assigned to this teacher.")
+    section = _section(section_id)
+    if not section:
+        return AttendanceActionResult(False, "Selected section was not found.")
+    roster = _section_roster(section_id)
+    if not roster:
+        return AttendanceActionResult(
+            False,
+            "No enrolled students with verified face profiles were found for this section. Check student signup details: same department, branch, semester, section, and academic year.",
+        )
+
+    matches, message, total_faces = match_class_faces(image_bytes, roster)
+    if message != "Face analysis completed.":
+        return AttendanceActionResult(False, message)
+
+    try:
+        session = rest_insert(
+            "attendance_sessions",
+            {
+                "subject_id": subject_id,
+                "teacher_id": teacher["id"],
+                "section_id": section_id,
+                "session_date": date.today().isoformat(),
+                "status": "closed",
+            },
+        )[0]
+    except SupabaseError as exc:
+        return AttendanceActionResult(False, str(exc))
+
+    results = []
+    present_count = 0
+    for student in roster:
+        student_id = str(student["id"])
+        match = matches.get(student_id)
+        is_present = match is not None
+        present_count += 1 if is_present else 0
+        confidence = round(float(match["distance"]), 4) if match else None
+        try:
+            rest_insert(
+                "attendance_records",
+                {
+                    "session_id": session["id"],
+                    "student_id": student_id,
+                    "status": "present" if is_present else "absent",
+                    "confidence": confidence,
+                    "liveness_passed": True if is_present else None,
+                },
+            )
+        except SupabaseError:
+            continue
+        results.append(
+            {
+                "name": student.get("name") or student.get("email") or student.get("roll_number") or student_id,
+                "roll_number": student.get("roll_number") or "-",
+                "status": "present" if is_present else "absent",
+                "confidence": confidence,
+            }
+        )
+
+    details = {
+        "session_id": session["id"],
+        "subject": f"{subject.get('code') or ''} {subject.get('name') or ''}".strip(),
+        "section": _section_display(section),
+        "source": source,
+        "total_faces": total_faces,
+        "total_students": len(roster),
+        "present": present_count,
+        "absent": max(0, len(roster) - present_count),
+        "results": results,
+    }
+    return AttendanceActionResult(
+        True,
+        f"Attendance saved: {present_count}/{len(roster)} students marked present from {total_faces} detected face(s).",
+        details=details,
+    )
 
 
 def _admin_context() -> dict:
@@ -205,6 +367,207 @@ def _attendance_records_for_student(attendance_student_id: str) -> list[dict]:
         {"select": "*, attendance_sessions(session_date,status,subjects(code,name))", "student_id": eq(attendance_student_id), "order": "marked_at.desc"},
     )
     return rows
+
+
+def _student_subjects(section_id: str) -> list[dict]:
+    if not section_id:
+        return []
+    section_ids = _equivalent_section_ids(section_id)
+    subject_ids: set[str] = set()
+    for equivalent_section_id in section_ids:
+        try:
+            links = rest_select(
+                "subject_sections",
+                {"select": "subject_id", "section_id": eq(equivalent_section_id)},
+            )
+        except SupabaseError:
+            links = []
+        subject_ids.update(str(row.get("subject_id")) for row in links if row.get("subject_id"))
+    if not subject_ids:
+        return []
+    try:
+        subjects = rest_select("subjects", {"select": "id,code,name,teacher_id,is_active", "order": "code.asc"})
+        profiles = {str(row["id"]): row for row in rest_select("profiles", {"select": "id,full_name,email"})}
+    except SupabaseError:
+        return []
+    rows = []
+    for subject in subjects:
+        if str(subject.get("id")) not in subject_ids:
+            continue
+        teacher = profiles.get(str(subject.get("teacher_id") or ""), {})
+        rows.append(
+            {
+                "code": subject.get("code") or "-",
+                "name": subject.get("name") or "-",
+                "teacher": teacher.get("full_name") or teacher.get("email") or "-",
+                "is_active": subject.get("is_active") is not False,
+            }
+        )
+    return rows
+
+
+def _teacher_timetable_classes(user: dict) -> list[dict]:
+    try:
+        runs = rest_select("timetable_runs", {"select": "id,algorithm_meta", "order": "generated_at.desc,id.desc", "limit": "50"})
+    except SupabaseError:
+        return []
+    published_run = None
+    for run in runs:
+        if (run.get("algorithm_meta") or {}).get("status") == "published":
+            published_run = run
+            break
+    if not published_run:
+        return []
+    try:
+        entries = rest_select(
+            "timetable_entries",
+            {
+                "select": "id,subject_id,section_id,day,subjects(code,name),sections(name,semester,academic_year,branches(name,code),departments(name,code)),timetable_time_slots(label,start_time,end_time)",
+                "run_id": eq(published_run["id"]),
+                "teacher_id": eq(user["id"]),
+                "order": "day.asc",
+            },
+        )
+    except SupabaseError:
+        return []
+    classes = []
+    for entry in entries:
+        subject = entry.get("subjects") or {}
+        section = entry.get("sections") or {}
+        slot = entry.get("timetable_time_slots") or {}
+        classes.append(
+            {
+                "value": f"{entry.get('subject_id')}|{entry.get('section_id')}",
+                "label": f"{entry.get('day')} - {slot.get('label') or _time_range(slot)} - {subject.get('code') or ''} {subject.get('name') or ''} - {_section_display(section)}",
+            }
+        )
+    return classes
+
+
+def _teacher_subject(teacher_id: str, subject_id: str) -> dict | None:
+    rows = rest_select("subjects", {"select": "id,code,name,teacher_id", "id": eq(subject_id), "teacher_id": eq(teacher_id), "limit": "1"})
+    return rows[0] if rows else None
+
+
+def _section(section_id: str) -> dict | None:
+    rows = rest_select("sections", {"select": "id,name,semester,academic_year,department_id,branch_id,branches(name,code),departments(name,code)", "id": eq(section_id), "limit": "1"})
+    return rows[0] if rows else None
+
+
+def _section_roster(section_id: str) -> list[dict]:
+    roster = _roster_for_section_ids(_equivalent_section_ids(section_id))
+    if roster:
+        return roster
+    return _roster_for_section_ids(_section_signature_fallback_ids(section_id))
+
+
+def _roster_for_section_ids(section_ids: list[str]) -> list[dict]:
+    students = []
+    seen_student_ids: set[str] = set()
+    for equivalent_section_id in section_ids:
+        section_students = rest_select(
+            "attendance_students",
+            {
+                "select": "id,profile_id,roll_number,face_embedding,biometric_status,section_id",
+                "section_id": eq(equivalent_section_id),
+            },
+        )
+        for student in section_students:
+            student_id = str(student.get("id") or "")
+            if student_id and student_id not in seen_student_ids:
+                seen_student_ids.add(student_id)
+                students.append(student)
+    profiles = {str(row["id"]): row for row in rest_select("profiles", {"select": "id,full_name,email,role,is_active"})}
+    roster = []
+    for student in students:
+        if student.get("biometric_status") != "verified" or not student.get("face_embedding"):
+            continue
+        profile = profiles.get(str(student.get("profile_id")), {})
+        if profile.get("is_active") is False:
+            continue
+        roster.append(
+            {
+                **student,
+                "name": profile.get("full_name") or "",
+                "email": profile.get("email") or "",
+            }
+        )
+    return roster
+
+
+def _section_signature_fallback_ids(section_id: str) -> list[str]:
+    section = _section(section_id)
+    if not section:
+        return []
+    name = str(section.get("name") or "").strip()
+    semester = str(section.get("semester") or "").strip()
+    department_id = str(section.get("department_id") or "").strip()
+    branch_id = str(section.get("branch_id") or "").strip()
+    if not name or not semester or not department_id:
+        return []
+
+    query = {
+        "select": "id",
+        "department_id": eq(department_id),
+        "name": eq(name),
+        "semester": eq(semester),
+    }
+    if branch_id:
+        query["branch_id"] = eq(branch_id)
+    try:
+        rows = rest_select("sections", query)
+    except SupabaseError:
+        rows = []
+    current_id = str(section.get("id") or section_id)
+    ids = [str(row["id"]) for row in rows if row.get("id")]
+    return ids or [current_id]
+
+
+def _equivalent_section_ids(section_id: str) -> list[str]:
+    section = _section(section_id)
+    if not section:
+        return [section_id] if section_id else []
+    required_keys = ("department_id", "branch_id", "name", "semester", "academic_year")
+    if any(section.get(key) in (None, "") for key in required_keys):
+        return [str(section.get("id") or section_id)]
+    try:
+        rows = rest_select(
+            "sections",
+            {
+                "select": "id",
+                "department_id": eq(str(section["department_id"])),
+                "branch_id": eq(str(section["branch_id"])),
+                "name": eq(str(section["name"])),
+                "semester": eq(str(section["semester"])),
+                "academic_year": eq(str(section["academic_year"])),
+            },
+        )
+    except SupabaseError:
+        rows = []
+    ids = [str(row["id"]) for row in rows if row.get("id")]
+    current_id = str(section.get("id") or section_id)
+    return ids or [current_id]
+
+
+def _time_range(slot: dict) -> str:
+    start = str(slot.get("start_time") or "")[:5]
+    end = str(slot.get("end_time") or "")[:5]
+    return f"{start}-{end}" if start and end else "Class"
+
+
+def _section_display(section: dict) -> str:
+    department = section.get("departments") or {}
+    branch = section.get("branches") or {}
+    parts = []
+    if department.get("code"):
+        parts.append(str(department["code"]))
+    if branch.get("code"):
+        parts.append(str(branch["code"]))
+    if section.get("semester"):
+        parts.append(f"Sem {section['semester']}")
+    if section.get("name"):
+        parts.append(f"Sec {section['name']}")
+    return " / ".join(parts) or str(section.get("id") or "")
 
 
 def _get_or_create_student_section(department_id: str, branch_id: str, section_name: str, semester: int, academic_year: str) -> dict:

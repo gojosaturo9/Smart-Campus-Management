@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.core.module_catalog import MODULES
 from app.core.roles import ALL_ROLES
 from app.core.supabase_client import SupabaseError, rest_select
 from app.core.users import user_counts_by_role
@@ -18,14 +17,11 @@ class MetricCard:
 def admin_analytics_cards() -> tuple[MetricCard, ...]:
     counts = user_counts_by_role()
     total_users = sum(counts.values())
-    online_modules = sum(1 for module in MODULES.values() if module.health == "online")
-    configured_modules = sum(1 for module in MODULES.values() if module.launch_url)
 
     return (
         MetricCard("Total users", str(total_users), _role_detail(counts)),
         MetricCard("Students", str(counts.get("student", 0)), "Active student profiles"),
         MetricCard("Teachers", str(counts.get("teacher", 0)), "Active teacher profiles"),
-        MetricCard("Module health", f"{online_modules}/{configured_modules}", "Online configured module URLs"),
         MetricCard("ATS analyses", str(_count("ats_analyses")), "Resume analysis records in Supabase"),
         MetricCard("Quiz attempts", str(_count("quiz_attempts")), "Notes-to-Test attempt records in Supabase"),
         MetricCard("Events", str(_count("events")), "Campus events and seminars"),

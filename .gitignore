@@ -8,3 +8,8 @@ data/*.log
 data/module_logs/
 data/module_processes.json
 data/smartcampus.db
+data/profile_photos/
+server_*.log
+server_*.err.log
+server_*.out.log
+*.log

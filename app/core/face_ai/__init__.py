@@ -1,3 +1,3 @@
-from app.core.face_ai.pipeline import FaceAISetupError, create_face_embedding
+from app.core.face_ai.pipeline import FaceAISetupError, create_face_embedding, create_face_embeddings
 
-__all__ = ["FaceAISetupError", "create_face_embedding"]
+__all__ = ["FaceAISetupError", "create_face_embedding", "create_face_embeddings"]

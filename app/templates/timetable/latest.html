@@ -5,9 +5,9 @@
 <section class="panel">
   <div class="section-title">
     <div>
-      <h2>Weekly Timetable</h2>
+      <h2>{{ timetable.selected_day }} Timetable</h2>
       {% if timetable.run %}
-        <p>Generated {{ timetable.generated_label }}</p>
+        <p>{{ timetable.status|title }} | Generated {{ timetable.generated_label }} | {{ timetable.run_label }}</p>
       {% else %}
         <p>{{ timetable.message }}</p>
       {% endif %}
@@ -15,8 +15,21 @@
     <div class="button-row no-margin">
       {% if user.role == "admin" %}
         <form method="post" action="/timetable/generate" class="generate-timetable-form">
-          <button type="submit" data-default-label="Generate Timetable">Generate Timetable</button>
+          <select name="day" aria-label="Timetable day">
+            {% for day_name in available_days %}
+              <option value="{{ day_name }}" {% if day_name == timetable.selected_day %}selected{% endif %}>{{ day_name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" data-default-label="Generate Day Timetable">Generate Day Timetable</button>
         </form>
+        {% if timetable.run and not timetable.is_published %}
+          <form method="post" action="/timetable/publish" class="generate-timetable-form">
+            <input type="hidden" name="run_id" value="{{ timetable.run.id }}">
+            <input type="hidden" name="day" value="{{ timetable.selected_day }}">
+            <button type="submit">Publish</button>
+          </form>
+        {% endif %}
+        <button type="button" class="secondary-button" onclick="window.print()">Print</button>
       {% endif %}
     </div>
   </div>
@@ -41,7 +54,7 @@
   {% if timetable.entries %}
     <div class="summary-grid">
       <article class="summary-card">
-        <span>Total classes</span>
+        <span>Classes today</span>
         <strong>{{ timetable.entries|length }}</strong>
       </article>
       <article class="summary-card">
@@ -52,24 +65,88 @@
         <span>Teachers</span>
         <strong>{{ timetable.teachers|length }}</strong>
       </article>
+      <article class="summary-card">
+        <span>Teacher conflicts</span>
+        <strong>{{ timetable.metrics.teacher_conflicts or 0 }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>Room conflicts</span>
+        <strong>{{ timetable.metrics.room_conflicts or 0 }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>Free periods</span>
+        <strong>{{ timetable.metrics.free_periods or 0 }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>Sports classes</span>
+        <strong>{{ timetable.metrics.sports_classes or 0 }}</strong>
+      </article>
     </div>
 
-    <div class="timetable-section-grid">
-      {% for section_table in timetable.section_tables %}
-        <article class="timetable-section-card">
+    {% if user.role == "admin" %}
+      <form method="get" action="/timetable" class="timetable-filter-form">
+        <input type="hidden" name="day" value="{{ timetable.selected_day }}">
+        <label>
+          Version
+          <select name="run_id">
+            {% for version in timetable.versions %}
+              <option value="{{ version.id }}" {% if timetable.run and version.id == timetable.run.id %}selected{% endif %}>
+                {{ version.day }} | {{ version.label }} | {{ version.generated_label }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Branch
+          <select name="branch">
+            <option value="">All branches</option>
+            {% for branch in timetable.filter_branches %}
+              <option value="{{ branch }}" {% if branch == timetable.selected_branch %}selected{% endif %}>{{ branch }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Section
+          <select name="section">
+            <option value="">All sections</option>
+            {% for section in timetable.filter_sections %}
+              <option value="{{ section }}" {% if section == timetable.selected_section %}selected{% endif %}>{{ section }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="secondary-button">Apply</button>
+      </form>
+    {% endif %}
+
+    <div class="branch-timetable-grid">
+      {% for branch_table in timetable.branch_tables %}
+        <article class="daily-timetable-card">
           <div class="timetable-section-head">
             <div>
-              <h3>{{ section_table.section }}</h3>
-              <p>{{ section_table.class_count }} classes | {{ section_table.teacher_count }} teachers</p>
+              <span class="timetable-context-label">
+                {% if user.role == "teacher" %}
+                  Faculty View
+                {% elif user.role == "student" %}
+                  Student View
+                {% else %}
+                  Admin Preview
+                {% endif %}
+              </span>
+              <h3>{{ branch_table.branch_title }}</h3>
+              <p>{{ timetable.selected_day }} | {{ branch_table.class_count }} classes | {{ branch_table.sections|length }} sections | {{ branch_table.teacher_count }} teachers</p>
+            </div>
+            <div class="timetable-status-stack">
+              <strong>{{ timetable.status|title }}</strong>
+              <span>{{ timetable.run_label }}</span>
             </div>
           </div>
           <div class="table-wrap">
-            <table class="timetable-grid-table">
+            <table class="branch-timetable-table">
               <thead>
                 <tr>
-                  <th>Day</th>
-                  {% for slot in section_table.rows[0].slots %}
-                    <th>
+                  <th>Section</th>
+                  {% for slot in branch_table.section_rows[0].slots %}
+                    <th class="{% if slot.is_lunch %}lunch-heading{% endif %}">
                       <strong>{{ slot.label }}</strong>
                       <small>{{ slot.time }}</small>
                     </th>
@@ -77,23 +154,34 @@
                 </tr>
               </thead>
               <tbody>
-                {% for row in section_table.rows %}
+                {% for section_row in branch_table.section_rows %}
                   <tr>
-                    <th>{{ row.day }}</th>
-                    {% for slot in row.slots %}
-                      <td class="{% if slot.is_lunch %}lunch-cell{% endif %}">
+                    <th>{{ section_row.section }}</th>
+                    {% for slot in section_row.slots %}
+                      <td class="{% if slot.is_lunch %}branch-lunch-cell{% endif %}">
                         {% if slot.is_lunch %}
                           <span class="lunch-pill">Lunch</span>
                         {% elif slot.entries %}
                           {% for entry in slot.entries %}
-                            <div class="timetable-cell">
-                              <strong>{{ entry.subject_code }}</strong>
+                            <div class="branch-class-cell {{ entry.subject_color_class }} type-{{ entry.subject_type }} {% if entry.is_current_teacher %}current-teacher-class{% endif %}">
+                              <div class="class-cell-head">
+                                <strong>{{ entry.subject_code or "Subject" }}</strong>
+                                <em>
+                                  {% if entry.is_sports %}
+                                    Sports
+                                  {% elif entry.is_lab %}
+                                    Lab
+                                  {% else %}
+                                    Theory
+                                  {% endif %}
+                                </em>
+                              </div>
                               <span>{{ entry.subject_name }}</span>
                               <small>{{ entry.teacher }}{% if entry.room %} | {{ entry.room }}{% endif %}</small>
                             </div>
                           {% endfor %}
                         {% else %}
-                          <span class="empty-cell">-</span>
+                          <span class="empty-cell compact">Free</span>
                         {% endif %}
                       </td>
                     {% endfor %}

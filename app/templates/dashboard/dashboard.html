@@ -3,17 +3,20 @@
 {% block page_heading %}{{ title }}{% endblock %}
 {% block content %}
 <section class="summary-grid">
-  <article class="summary-card">
+  <article class="summary-card profile-summary-card">
+    <div class="summary-profile-avatar">
+      {% if user.avatar_url %}
+        <img src="{{ user.avatar_url }}" alt="{{ user.name }} profile picture">
+      {% else %}
+        <span>{{ user.initials or "U" }}</span>
+      {% endif %}
+    </div>
     <span>Signed in as</span>
     <strong>{{ user.name }}</strong>
   </article>
   <article class="summary-card">
     <span>Role</span>
     <strong>{{ role_labels[user.role] }}</strong>
-  </article>
-  <article class="summary-card">
-    <span>Available AI modules</span>
-    <strong>{{ modules|length }}</strong>
   </article>
 </section>
 
@@ -119,12 +122,7 @@
   <article class="summary-card">
     <span>Teaching actions</span>
     <strong>Attendance</strong>
-    <small><a class="inline-link" href="/modules/attendance">Open attendance portal</a></small>
-  </article>
-  <article class="summary-card">
-    <span>Assessments</span>
-    <strong>Notes-to-Test</strong>
-    <small><a class="inline-link" href="/modules/notes-to-test">Generate quiz</a></small>
+    <small><a class="inline-link" href="/attendance">Open attendance portal</a></small>
   </article>
   <article class="summary-card">
     <span>Campus events</span>
@@ -149,7 +147,7 @@
 <section class="panel">
   <div class="section-title">
     <h2>Analytics Snapshot</h2>
-    <p>Live platform counts from Supabase and configured module health checks.</p>
+    <p>Live platform counts from Supabase.</p>
   </div>
 
   <div class="analytics-grid">
@@ -168,14 +166,9 @@
 <section class="panel">
   <div class="section-title">
     <h2>Operations</h2>
-    <p>Current platform activity across modules, timetable, events, and alumni features.</p>
+    <p>Current platform activity across timetable, events, and alumni features.</p>
   </div>
   <div class="analytics-grid">
-    <article class="summary-card">
-      <span>Module health</span>
-      <strong>{{ dashboard_summary.admin_stats.module_health }}</strong>
-      <small><a class="inline-link" href="/modules">Open launcher</a></small>
-    </article>
     <article class="summary-card">
       <span>Timetable runs</span>
       <strong>{{ dashboard_summary.admin_stats.timetable_runs }}</strong>
@@ -195,86 +188,4 @@
 </section>
 {% endif %}
 
-{% if ats_summary %}
-<section class="panel">
-  <div class="section-title">
-    <h2>ATS Resume Summary</h2>
-    <p>Latest analysis from the ATS backend API.</p>
-  </div>
-
-  <div class="summary-grid compact-grid">
-    <article class="summary-card">
-      <span>Status</span>
-      <strong>{{ ats_summary.status }}</strong>
-    </article>
-    <article class="summary-card">
-      <span>Latest score</span>
-      <strong>{% if ats_summary.latest_score is not none %}{{ ats_summary.latest_score }}{% else %}-{% endif %}</strong>
-    </article>
-    <article class="summary-card">
-      <span>Total analyses</span>
-      <strong>{{ ats_summary.total_analyses }}</strong>
-    </article>
-  </div>
-
-  <div class="detail-strip">
-    <span>{{ ats_summary.latest_resume or "No resume analysis yet" }}</span>
-    <small>{{ ats_summary.message }}</small>
-  </div>
-</section>
-{% endif %}
-
-{% if notes_summary %}
-<section class="panel">
-  <div class="section-title">
-    <h2>Notes-to-Test API</h2>
-    <p>Backend status and available quiz-generation endpoints.</p>
-  </div>
-
-  <div class="summary-grid compact-grid">
-    <article class="summary-card">
-      <span>Status</span>
-      <strong>{{ notes_summary.status }}</strong>
-    </article>
-    <article class="summary-card">
-      <span>Health</span>
-      <strong>{{ notes_summary.health }}</strong>
-    </article>
-    <article class="summary-card">
-      <span>API</span>
-      <strong>{% if notes_summary.api_url %}configured{% else %}missing{% endif %}</strong>
-    </article>
-  </div>
-
-  <div class="detail-strip">
-    <span>{{ notes_summary.message }}</span>
-    <small>{{ notes_summary.api_url or "Set NOTES_TEST_API_URL" }}</small>
-  </div>
-</section>
-{% endif %}
-
-<section class="panel">
-  <div class="section-title">
-    <h2>Module Access</h2>
-    <p>Open existing modules, inspect health, and manage local development launch settings.</p>
-  </div>
-
-  <div class="module-grid">
-    {% for module in modules %}
-      <a class="module-card" href="{{ module.dashboard_url }}">
-        <strong>{{ module.name }}</strong>
-        <span>{{ module.description }}</span>
-        <small>{{ module.stack }}</small>
-        <div class="badge-row">
-          <em class="status-badge {{ module.health }}">{{ module.health }}</em>
-          {% if module.exists %}
-            <em class="status-badge detected">detected</em>
-          {% else %}
-            <em class="status-badge missing">missing</em>
-          {% endif %}
-        </div>
-      </a>
-    {% endfor %}
-  </div>
-</section>
 {% endblock %}

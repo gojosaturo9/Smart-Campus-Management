@@ -4,17 +4,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Dashboard - Smart Campus{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/styles.css">
   </head>
   <body class="app-body">
     <aside class="sidebar">
-      <a class="brand" href="/{{ user.role }}/dashboard">
-        <span class="brand-mark">SC</span>
-        <span>
-          <strong>Smart Campus</strong>
-          <small>{{ role_labels[user.role] }}</small>
-        </span>
-      </a>
+      <div class="sidebar-head">
+        <a class="brand" href="/{{ user.role }}/dashboard">
+          <span class="brand-mark">SC</span>
+          <span>
+            <strong>Smart Campus</strong>
+            <small>{{ role_labels[user.role] }}</small>
+          </span>
+        </a>
+        <button class="sidebar-close" type="button" data-sidebar-close aria-label="Close navigation">x</button>
+      </div>
 
       <nav class="nav-list">
         {% for item in role_nav[user.role] %}
@@ -22,19 +28,51 @@
         {% endfor %}
       </nav>
     </aside>
+    <button class="sidebar-scrim" type="button" data-sidebar-close aria-label="Close navigation"></button>
 
     <div class="main-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">{{ role_labels[user.role] }} Portal</p>
-          <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+        <div class="topbar-heading">
+          <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Open navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div>
+            <p class="eyebrow">{{ role_labels[user.role] }} Portal</p>
+            <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+          </div>
         </div>
-        <form method="post" action="/logout">
-          <button class="secondary-button" type="submit">Logout</button>
-        </form>
+        <div class="topbar-actions">
+          <form method="post" action="/profile/photo" enctype="multipart/form-data" class="topbar-profile-form" data-profile-photo-form data-profile-photo-auto-submit="true">
+            <label class="topbar-profile" title="Upload profile picture">
+              <span class="topbar-avatar">
+                {% if user.avatar_url %}
+                  <img src="{{ user.avatar_url }}" alt="{{ user.name }} profile picture">
+                {% else %}
+                  <span>{{ user.initials or "U" }}</span>
+                {% endif %}
+              </span>
+              <span class="topbar-profile-copy">
+                <strong>{{ user.name }}</strong>
+                <small>Change photo</small>
+              </span>
+              <input name="profile_photo" type="file" accept="image/*" data-profile-photo-input hidden>
+            </label>
+          </form>
+          <form method="post" action="/logout">
+            <button class="secondary-button" type="submit">Logout</button>
+          </form>
+        </div>
       </header>
 
       <main class="content">
+        {% if request.query_params.get("message") %}
+          <div class="notice">{{ request.query_params.get("message") }}</div>
+        {% endif %}
+        {% if request.query_params.get("error") %}
+          <div class="alert">{{ request.query_params.get("error") }}</div>
+        {% endif %}
         {% block content %}{% endblock %}
       </main>
     </div>
@@ -46,7 +84,44 @@
         <span class="loading-line short"></span>
       </div>
     </div>
+    <div class="photo-adjust-modal" data-photo-adjust-modal hidden>
+      <div class="photo-adjust-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-adjust-title">
+        <div class="photo-adjust-head">
+          <div>
+            <p class="eyebrow">Profile Photo</p>
+            <h2 id="photo-adjust-title">Adjust Photo</h2>
+          </div>
+          <button class="secondary-button" type="button" data-photo-adjust-cancel>Cancel</button>
+        </div>
+        <div class="photo-adjust-body">
+          <div class="photo-adjust-stage">
+            <canvas data-photo-adjust-canvas width="360" height="360" aria-label="Adjusted profile photo preview"></canvas>
+          </div>
+          <div class="photo-adjust-controls">
+            <label>
+              Zoom
+              <input data-photo-adjust-zoom type="range" min="1" max="3" step="0.01" value="1">
+            </label>
+            <label>
+              Move left / right
+              <input data-photo-adjust-x type="range" min="-1" max="1" step="0.01" value="0">
+            </label>
+            <label>
+              Move up / down
+              <input data-photo-adjust-y type="range" min="-1" max="1" step="0.01" value="0">
+            </label>
+          </div>
+        </div>
+        <div class="photo-adjust-actions">
+          <button class="secondary-button" type="button" data-photo-adjust-reset>Reset</button>
+          <button type="button" data-photo-adjust-save>Save Photo</button>
+        </div>
+      </div>
+    </div>
     <script src="/static/js/global-loading.js"></script>
+    <script src="/static/js/sidebar-drawer.js"></script>
+    <script src="/static/js/summary-card-icons.js"></script>
+    <script src="/static/js/profile-photo-adjust.js"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

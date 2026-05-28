@@ -40,41 +40,62 @@
 
   <form class="teacher-subject-form" method="post" action="/teacher/setup/subjects">
     <label>
-      Subject Code
-      <input name="subject_code" type="text" placeholder="CS202" required>
-    </label>
-    <label>
-      Subject Name
-      <input name="subject_name" type="text" placeholder="AI/ML" required>
-    </label>
-    <label>
       Department
-      <input name="department_name" type="text" placeholder="Computer Science" required>
-    </label>
-    <label>
-      Department Code
-      <input name="department_code" type="text" placeholder="CSE">
+      <select name="department_code" data-rgpv-department required>
+        <option value="">Select department</option>
+        {% for department in catalog_departments %}
+          <option value="{{ department.code }}" data-name="{{ department.name }}">{{ department.name }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label>
       Branch
-      <input name="branch_name" type="text" placeholder="AI/ML" required>
-    </label>
-    <label>
-      Branch Code
-      <input name="branch_code" type="text" placeholder="AIML">
+      <select name="branch_code" data-rgpv-branch required>
+        <option value="">Select branch</option>
+        {% for branch in catalog_branches %}
+          <option value="{{ branch.code }}" data-department-code="{{ branch.department_code }}" data-name="{{ branch.name }}">{{ branch.name }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label>
       Semester
-      <input name="semester" type="number" min="1" max="12" placeholder="6" required>
+      <select name="semester" data-rgpv-semester required>
+        <option value="">Select semester</option>
+        {% for semester in semesters %}
+          <option value="{{ semester }}">Semester {{ semester }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Subject
+      <select name="subject_code" data-rgpv-subject required>
+        <option value="">Select subject</option>
+        {% for subject in catalog_subjects %}
+          <option value="{{ subject.code }}" data-branch-code="{{ subject.branch_code }}" data-semester="{{ subject.semester }}" data-name="{{ subject.name }}">
+            {{ subject.code }} - {{ subject.name }}
+          </option>
+        {% endfor %}
+      </select>
     </label>
     <label>
       Section
-      <input name="section_name" type="text" value="A" maxlength="10" required>
+      <select name="section_name" required>
+        {% for section_name in section_names %}
+          <option value="{{ section_name }}">{{ section_name }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label>
       Academic Year
-      <input name="academic_year" type="text" value="2026-27" required>
+      <select name="academic_year" required>
+        {% for year in academic_years %}
+          <option value="{{ year }}" {% if year == "2026-27" %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+      </select>
     </label>
+    <input name="subject_name" data-rgpv-subject-name type="hidden">
+    <input name="department_name" data-rgpv-department-name type="hidden">
+    <input name="branch_name" data-rgpv-branch-name type="hidden">
     <button type="submit">Save Subject</button>
   </form>
 </section>
@@ -111,7 +132,7 @@
               <td>
                 {% if subject.linked_sections %}
                   {% for section in subject.linked_sections %}
-                    <span>{{ section.branch_name or section.branch_code or "-" }}</span>{% if not loop.last %}<br>{% endif %}
+                    <span>{{ section.branch_name or "-" }}</span>{% if not loop.last %}<br>{% endif %}
                   {% endfor %}
                 {% else %}
                   <span class="muted">Re-save required</span>
@@ -154,4 +175,78 @@
     <p class="muted">No subjects added yet.</p>
   {% endif %}
 </section>
+<script>
+  (() => {
+    const departmentSelect = document.querySelector("[data-rgpv-department]");
+    const branchSelect = document.querySelector("[data-rgpv-branch]");
+    const semesterSelect = document.querySelector("[data-rgpv-semester]");
+    const subjectSelect = document.querySelector("[data-rgpv-subject]");
+    const subjectNameInput = document.querySelector("[data-rgpv-subject-name]");
+    const departmentNameInput = document.querySelector("[data-rgpv-department-name]");
+    const branchNameInput = document.querySelector("[data-rgpv-branch-name]");
+
+    const selectedOption = (select) => select.options[select.selectedIndex] || null;
+
+    const setOptionVisibility = (select, predicate) => {
+      Array.from(select.options).forEach((option, index) => {
+        if (index === 0) {
+          option.hidden = false;
+          option.disabled = false;
+          return;
+        }
+        const visible = predicate(option);
+        option.hidden = !visible;
+        option.disabled = !visible;
+      });
+    };
+
+    const selectedValueStillVisible = (select) => {
+      const option = selectedOption(select);
+      return option && !option.hidden && !option.disabled;
+    };
+
+    const syncHiddenFields = () => {
+      const department = selectedOption(departmentSelect);
+      const branch = selectedOption(branchSelect);
+      const subject = selectedOption(subjectSelect);
+      departmentNameInput.value = department ? department.dataset.name || "" : "";
+      branchNameInput.value = branch ? branch.dataset.name || "" : "";
+      subjectNameInput.value = subject ? subject.dataset.name || "" : "";
+    };
+
+    const filterBranches = () => {
+      const departmentCode = departmentSelect.value;
+      setOptionVisibility(branchSelect, (option) => {
+        return !departmentCode || option.dataset.departmentCode === departmentCode;
+      });
+      if (!selectedValueStillVisible(branchSelect)) {
+        branchSelect.value = "";
+      }
+      filterSubjects();
+      syncHiddenFields();
+    };
+
+    const filterSubjects = () => {
+      const branchCode = branchSelect.value;
+      const semester = semesterSelect.value;
+      setOptionVisibility(subjectSelect, (option) => {
+        const optionBranch = option.dataset.branchCode;
+        const optionSemester = option.dataset.semester;
+        const branchMatches = !branchCode || optionBranch === branchCode || optionBranch === "ALL";
+        const semesterMatches = !semester || optionSemester === semester;
+        return branchMatches && semesterMatches;
+      });
+      if (!selectedValueStillVisible(subjectSelect)) {
+        subjectSelect.value = "";
+      }
+      syncHiddenFields();
+    };
+
+    departmentSelect.addEventListener("change", filterBranches);
+    branchSelect.addEventListener("change", filterSubjects);
+    semesterSelect.addEventListener("change", filterSubjects);
+    subjectSelect.addEventListener("change", syncHiddenFields);
+    filterBranches();
+  })();
+</script>
 {% endblock %}

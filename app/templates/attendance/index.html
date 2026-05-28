@@ -2,13 +2,6 @@
 {% block title %}Attendance - Smart Campus{% endblock %}
 {% block page_heading %}Attendance{% endblock %}
 {% block content %}
-{% if message %}
-  <div class="notice">{{ message }}</div>
-{% endif %}
-{% if error %}
-  <div class="alert">{{ error }}</div>
-{% endif %}
-
 {% if user.role == "student" %}
 <section class="summary-grid">
   <article class="summary-card">
@@ -23,11 +16,102 @@
   </article>
   <article class="summary-card">
     <span>Section</span>
-    {% set section = context.profile.sections or {} %}
+    {% set section = context.section or {} %}
     {% set department = section.departments or {} %}
-    <strong>{{ department.code or "-" }}</strong>
-    <small>{% if section.semester %}Sem {{ section.semester }}{% endif %} {{ section.name or "" }}</small>
+    {% set branch = section.branches or {} %}
+    <strong>{{ branch.code or department.code or "-" }}</strong>
+    <small>{% if section.semester %}Sem {{ section.semester }}{% endif %}{% if section.name %} / Sec {{ section.name }}{% endif %}</small>
   </article>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>My Profile Details</h2>
+      <p>Your attendance account is linked with this academic section.</p>
+    </div>
+  </div>
+  {% set section = context.section or {} %}
+  {% set department = section.departments or {} %}
+  {% set branch = section.branches or {} %}
+  <div class="profile-photo-row">
+    <div class="profile-avatar">
+      {% if user.avatar_url %}
+        <img src="{{ user.avatar_url }}" alt="{{ user.name }} profile picture">
+      {% else %}
+        <span>{{ user.initials or "S" }}</span>
+      {% endif %}
+    </div>
+    <form method="post" action="/profile/photo" enctype="multipart/form-data" class="profile-photo-form" data-profile-photo-form>
+      <label>
+        Profile picture
+        <input name="profile_photo" type="file" accept="image/*" data-profile-photo-input required>
+      </label>
+      <button type="submit">Upload Photo</button>
+    </form>
+  </div>
+  <div class="summary-grid">
+    <article class="summary-card">
+      <span>Roll number</span>
+      <strong>{{ context.profile.roll_number or context.attendance_student.roll_number or "-" }}</strong>
+      <small>{{ user.email }}</small>
+    </article>
+    <article class="summary-card">
+      <span>Department</span>
+      <strong>{{ department.name or "-" }}</strong>
+      <small>{{ department.code or "" }}</small>
+    </article>
+    <article class="summary-card">
+      <span>Branch</span>
+      <strong>{{ branch.name or "-" }}</strong>
+      <small>{{ branch.code or "" }}</small>
+    </article>
+    <article class="summary-card">
+      <span>Semester</span>
+      <strong>{% if section.semester %}{{ section.semester }}{% else %}-{% endif %}</strong>
+      <small>{% if section.name %}Section {{ section.name }}{% else %}Section not set{% endif %}</small>
+    </article>
+    <article class="summary-card">
+      <span>Academic year</span>
+      <strong>{{ section.academic_year or "-" }}</strong>
+      <small>Used for timetable and attendance matching.</small>
+    </article>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>My Subjects</h2>
+      <p>Subjects mapped to your current section.</p>
+    </div>
+  </div>
+  {% if context.subjects %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Subject</th>
+            <th>Teacher</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for subject in context.subjects %}
+            <tr>
+              <td>{{ subject.code }}</td>
+              <td>{{ subject.name }}</td>
+              <td>{{ subject.teacher }}</td>
+              <td>{% if subject.is_active %}Active{% else %}Inactive{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No subjects are mapped to your section yet.</p>
+  {% endif %}
 </section>
 
 <section class="panel">
@@ -81,9 +165,109 @@
   <article class="summary-card">
     <span>Next step</span>
     <strong>Capture</strong>
-    <small>Class-wise face attendance capture will plug in here.</small>
+    <small>Use camera or upload a class photo.</small>
   </article>
 </section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Take Class Attendance</h2>
+      <p>Select a timetable class, then capture a fresh classroom photo or upload an image.</p>
+    </div>
+  </div>
+
+  {% if context.classes %}
+    <div class="attendance-capture-grid">
+      <form method="post" action="/attendance/teacher/mark" enctype="multipart/form-data" class="attendance-capture-card">
+        <input type="hidden" name="source" value="camera">
+        <label>
+          Timetable class
+          <select name="class_choice" required>
+            {% for class_item in context.classes %}
+              <option value="{{ class_item.value }}">{{ class_item.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <section class="face-scan" data-live-face-scan data-processing-status="Class photo captured. Running face analysis...">
+          <div class="face-scan-head">
+            <strong>Camera capture</strong>
+            <span data-scan-status>Camera not started</span>
+          </div>
+          <div class="face-camera-frame">
+            <video data-scan-video autoplay playsinline muted></video>
+            <img data-captured-preview alt="Captured class photo preview" hidden>
+            <canvas data-scan-canvas hidden></canvas>
+          </div>
+          <input data-face-photo name="class_photo" type="file" accept="image/jpeg" hidden>
+        </section>
+        <button type="submit">Capture and Mark</button>
+      </form>
+
+      <form method="post" action="/attendance/teacher/mark" enctype="multipart/form-data" class="attendance-capture-card">
+        <input type="hidden" name="source" value="upload">
+        <label>
+          Timetable class
+          <select name="class_choice" required>
+            {% for class_item in context.classes %}
+              <option value="{{ class_item.value }}">{{ class_item.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Upload class photo
+          <input name="class_photo" type="file" accept="image/*" required>
+        </label>
+        <button type="submit">Upload and Mark</button>
+      </form>
+    </div>
+  {% else %}
+    <p class="muted">No published timetable classes found for you. Ask admin to publish the timetable first.</p>
+  {% endif %}
+</section>
+
+{% if session_result %}
+  <section class="panel">
+    <div class="section-title">
+      <div>
+        <h2>Latest Attendance Result</h2>
+        <p>{{ session_result.subject }} | {{ session_result.section }} | {{ session_result.date }}</p>
+      </div>
+    </div>
+    <div class="summary-grid">
+      <article class="summary-card">
+        <span>Present</span>
+        <strong>{{ session_result.present }}</strong>
+      </article>
+      <article class="summary-card">
+        <span>Absent</span>
+        <strong>{{ session_result.absent }}</strong>
+      </article>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll</th>
+            <th>Student</th>
+            <th>Status</th>
+            <th>Face distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in session_result.rows %}
+            <tr>
+              <td>{{ row.roll_number }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.status|title }}</td>
+              <td>{{ row.confidence if row.confidence is not none else "-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
 
 <section class="panel">
   <div class="section-title">
@@ -134,4 +318,7 @@
   </article>
 </section>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+  <script src="/static/js/live-face-scan.js"></script>
 {% endblock %}

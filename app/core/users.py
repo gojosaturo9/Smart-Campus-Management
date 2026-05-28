@@ -45,18 +45,30 @@ def get_user_by_id(user_id: str) -> dict | None:
 
 
 def public_user(user: dict) -> dict:
+    name = user.get("full_name") or user.get("name") or user["email"]
     return {
         "id": str(user["id"]),
-        "name": user.get("full_name") or user.get("name") or user["email"],
+        "name": name,
         "email": user["email"],
         "role": user["role"],
         "section": user.get("section") or "",
         "teacher_uid": user.get("teacher_uid") or "",
         "department": user.get("department") or "",
         "semester": user.get("semester") or "",
+        "avatar_url": user.get("avatar_url") or "",
+        "initials": _initials(name),
         "is_active": bool(user["is_active"]),
         "created_at": user.get("created_at", ""),
     }
+
+
+def _initials(name: str) -> str:
+    parts = [part for part in str(name or "").replace("@", " ").replace(".", " ").split() if part]
+    if not parts:
+        return "U"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
 
 
 def list_users(role: str = "") -> list[dict]:

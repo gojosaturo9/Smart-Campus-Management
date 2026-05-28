@@ -18,7 +18,11 @@
 --   public.attendance_sessions
 --   public.attendance_records
 
-create or replace view public.canonical_teachers as
+drop view if exists public.canonical_teachers;
+drop view if exists public.canonical_students;
+drop view if exists public.canonical_subjects;
+
+create view public.canonical_teachers as
 select
     p.id::text as teacher_id,
     split_part(p.email, '@', 1) as username,
@@ -35,16 +39,20 @@ from public.profiles p
 left join public.teacher_profiles tp on tp.profile_id = p.id
 where p.role = 'teacher';
 
-create or replace view public.canonical_students as
+create view public.canonical_students as
 select
     p.id::text as student_id,
     sp.roll_number as enrollment_no,
     p.full_name as name,
     p.email as email_id,
     p.email,
-    d.name as branch,
+    d.name as department,
+    d.code as department_code,
+    b.name as branch,
+    b.code as branch_code,
     s.semester::text as semester,
     s.name as section,
+    s.academic_year,
     ats.face_embedding,
     ats.voice_embedding,
     coalesce(ats.biometric_status, 'pending') as biometric_status,
@@ -55,10 +63,11 @@ from public.profiles p
 join public.student_profiles sp on sp.profile_id = p.id
 left join public.sections s on s.id = sp.section_id
 left join public.departments d on d.id = s.department_id
+left join public.branches b on b.id = s.branch_id
 left join public.attendance_students ats on ats.profile_id = p.id
 where p.role = 'student';
 
-create or replace view public.canonical_subjects as
+create view public.canonical_subjects as
 select
     s.id::text as subject_id,
     s.code as subject_code,

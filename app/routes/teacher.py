@@ -44,10 +44,10 @@ def save_profile_action(
 @router.post("/setup/subjects")
 def save_subject_action(
     subject_code: str = Form(...),
-    subject_name: str = Form(...),
-    department_name: str = Form(...),
+    subject_name: str = Form(""),
+    department_name: str = Form(""),
     department_code: str = Form(""),
-    branch_name: str = Form(...),
+    branch_name: str = Form(""),
     branch_code: str = Form(""),
     semester: str = Form(...),
     section_name: str = Form("A"),

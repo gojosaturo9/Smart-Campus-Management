@@ -570,6 +570,69 @@ Analytics tasks:
 - Event participation stats
 - Alumni opportunity counts
 
+## Future Work - AI Chatbot and Helpdesk
+
+Requested source/reference project:
+
+```text
+https://github.com/Apexcoder1711/AI-powered-attendance-platform.git
+Local reference copy: ../TruePresence/AI-powered-attendance-platform
+Relevant local files:
+  ../TruePresence/AI-powered-attendance-platform/src/voice_rag/
+  ../TruePresence/AI-powered-attendance-platform/src/voice_rag/streamlit_ui.py
+  ../TruePresence/AI-powered-attendance-platform/src/voice_rag/attendance_context.py
+  ../TruePresence/AI-powered-attendance-platform/src/voice_rag/llm.py
+```
+
+Do not implement this until the user asks to resume chatbot/helpdesk work.
+
+Planned chatbot requirements:
+
+- Add a platform-native AI chatbot launcher in the right bottom corner of the Smart Campus dashboard.
+- Chatbot must work for Student, Teacher, Admin, and Alumni roles.
+- Chatbot must respect role hierarchy and RBAC:
+  - Student can access only their own profile, attendance, timetable, events, ATS, notes/test, and tickets.
+  - Teacher can access only their assigned classes, subjects, students, attendance sessions, timetable, and related tickets.
+  - Admin can access campus-wide data, analytics, users, modules, attendance, timetable, events, and helpdesk tickets.
+  - Alumni can access only alumni opportunities, their own posts, guidance interactions, and permitted public/student-connect data.
+- Reuse the TruePresence Voice-RAG concept, but implement it in FastAPI/Jinja/JS for this platform, not Streamlit UI.
+- Use server-side context builders so the model only receives already-authorized data.
+- Do not expose passwords, service keys, biometric embeddings, face vectors, voice vectors, or hidden implementation details.
+- Add optional AI provider support later using existing local secrets patterns, for example Gemini/OpenAI keys.
+
+Planned authentication enhancement:
+
+- Add Email/OTP authentication as an alternate login method.
+- OTP verification must still enforce selected portal role after Supabase verifies the email OTP.
+- Keep existing email/password login working.
+- Audit OTP request, OTP failure, and OTP login success events.
+
+Planned helpdesk/ticket requirements:
+
+- Add a real Helpdesk section instead of the current placeholder.
+- All roles should be able to raise complaints/tickets.
+- Ticket categories:
+  - WiFi / Internet Issue
+  - Hostel Problems
+  - Classroom / Lab Issue
+  - Library Support
+  - IT Support
+  - Security / Maintenance
+- Ticket fields:
+  - Title
+  - Description
+  - Priority: Low, Medium, High, Urgent
+  - Attachment upload: image, PDF, or screenshot
+  - Location/building selection
+- Store tickets in Supabase, extending `public.helpdesk_tickets` if needed.
+- Store uploaded attachments safely with server-side validation and role-checked download routes.
+- Ticket visibility rules:
+  - Student sees only their own tickets.
+  - Teacher sees their own tickets and tickets for their assigned classes if implemented.
+  - Alumni sees only their own tickets.
+  - Admin sees and manages all tickets.
+- Admin should be able to update status: open, in_progress, resolved, closed.
+
 ## Supabase Migration Plan
 
 The user wants SQLite removed and Supabase used for all platform/module data.
@@ -938,6 +1001,53 @@ compileall app tests -> passed
 pytest tests -> 3 passed
 /login smoke test -> 200 OK
 /missing-page smoke test -> 404 OK
+```
+
+## Current Progress - 2026-05-28
+
+UI/UX and attendance profile work moved forward.
+
+Implemented:
+
+- Attendance roster lookup now handles section-signature fallback when student section IDs do not match exactly.
+- Supabase repair SQL was added for student section/profile mapping cleanup.
+- Shared profile photo upload was added for student, teacher, admin, and alumni users.
+- Profile photo fallback now generates initials from name, e.g. Ayush Kumar becomes `AK`.
+- Topbar profile avatar/upload is available across dashboard roles.
+- Dashboard `Signed in as` summary card now shows the current user's profile image or initials.
+- Summary cards now get compact related icons automatically.
+- Dashboard sidebar now works as a responsive drawer on small screens.
+- UI theme was improved toward an Argon-style dashboard:
+  - Softer `#f6f9fc` page background
+  - White sidebar with active navigation accent
+  - Blue/cyan/green dashboard header
+  - Tone-based summary-card colors
+  - Cleaner shadows, buttons, inputs, tables, badges, and cards
+- Future chatbot/helpdesk requirements were documented only. Do not implement them until the user asks to resume that work.
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_attendance_roster.py tests/test_face_bridge.py tests/test_rbac.py -> 12 passed
+/login smoke test on http://127.0.0.1:9000/login -> 200 OK
+```
+
+Current local URL:
+
+```text
+http://127.0.0.1:9000/login
+```
+
+Next start point after login/resume:
+
+```text
+1. Open http://127.0.0.1:9000/login.
+2. Check dashboard UI on desktop and mobile width.
+3. Test profile photo upload for one student, one teacher, one admin, and one alumni account.
+4. Create/sign up one new student and verify Supabase stores department, branch, semester, section, academic year, and face profile correctly.
+5. Then test teacher attendance roster for that same section.
+6. Chatbot/helpdesk is only planned in README for now; start it only when explicitly requested.
 ```
 
 ## Development Rules

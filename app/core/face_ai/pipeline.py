@@ -39,11 +39,17 @@ def create_face_embedding(image_np) -> list[float]:
     return encodings[0].astype(float).tolist()
 
 
-def _encode_faces(image_np) -> tuple[list[np.ndarray], int]:
+def create_face_embeddings(image_np) -> tuple[list[list[float]], int]:
+    encodings, total_faces = _encode_faces(image_np, max_size=1280)
+    return [encoding.astype(float).tolist() for encoding in encodings], total_faces
+
+
+def _encode_faces(image_np, max_size=960) -> tuple[list[np.ndarray], int]:
     _, sp, facerec = _load_dlib_models()
-    image_np = _as_rgb_image(image_np)
-    image_np = _resize_for_detection(image_np, max_size=960)
-    faces = _filter_duplicate_faces(_detect_faces(image_np))
+    image_np = _as_dlib_rgb_image(image_np)
+    image_np = _resize_for_detection(image_np, max_size=max_size)
+    image_np = _as_dlib_rgb_image(image_np)
+    faces = _filter_duplicate_faces(_detect_faces(image_np, upsample_times=2))
     encodings = []
     for face in faces:
         with _suppress_native_output():
@@ -71,6 +77,7 @@ def _load_dlib_models():
 
 
 def _detect_faces(image_np, upsample_times=2):
+    image_np = _as_dlib_rgb_image(image_np)
     detector, _, _ = _load_dlib_models()
     with _suppress_native_output():
         faces = detector(image_np, upsample_times)
@@ -82,7 +89,19 @@ def _detect_faces(image_np, upsample_times=2):
     enhanced = ImageEnhance.Contrast(enhanced).enhance(1.15)
     enhanced_np = np.asarray(enhanced)
     with _suppress_native_output():
-        return detector(enhanced_np, upsample_times + 1)
+        faces = detector(enhanced_np, upsample_times)
+    if faces:
+        return faces
+    with _suppress_native_output():
+        faces = detector(enhanced_np, upsample_times + 1)
+    if faces:
+        return faces
+    with _suppress_native_output():
+        faces = detector(enhanced_np, upsample_times + 2)
+    if faces:
+        return faces
+    with _suppress_native_output():
+        return detector(enhanced_np, upsample_times + 3)
 
 
 def _filter_duplicate_faces(faces, min_center_distance=18):
@@ -111,14 +130,55 @@ def _resize_for_detection(image_np, max_size=960):
     return np.asarray(Image.fromarray(image_np).resize(new_size, Image.LANCZOS))
 
 
-def _as_rgb_image(image_np):
+def _as_dlib_rgb_image(image_np):
     image = np.asarray(image_np)
+
+    if image.ndim == 4 and image.shape[0] == 1:
+        image = image[0]
+
+    if image.ndim == 3 and image.shape[0] in (1, 3, 4) and image.shape[2] not in (1, 3, 4):
+        image = np.transpose(image, (1, 2, 0))
+
+    image = np.squeeze(image)
+
     if image.dtype != np.uint8:
-        image = np.clip(image, 0, 255).astype(np.uint8)
+        if np.issubdtype(image.dtype, np.floating):
+            finite_image = np.nan_to_num(image, nan=0.0, posinf=255.0, neginf=0.0)
+            if finite_image.size and float(np.nanmax(finite_image)) <= 1.0:
+                finite_image = finite_image * 255.0
+            image = np.clip(finite_image, 0, 255).astype(np.uint8)
+        else:
+            image = np.clip(image, 0, 255).astype(np.uint8)
+
     if image.ndim == 2:
         pil_image = Image.fromarray(image)
+    elif image.ndim == 3:
+        if image.shape[2] == 1:
+            pil_image = Image.fromarray(image[:, :, 0])
+        elif image.shape[2] in (3, 4):
+            pil_image = Image.fromarray(image)
+        else:
+            raise FaceAISetupError(
+                f"Unsupported image channel count: {image.shape[2]}. Expected gray, RGB, or RGBA."
+            )
     else:
-        pil_image = Image.fromarray(image)
+        raise FaceAISetupError(
+            f"Unsupported image dimensions: {image.ndim}. Expected gray, RGB, or RGBA image."
+        )
+
     if pil_image.mode != "RGB":
         pil_image = pil_image.convert("RGB")
-    return np.require(np.array(pil_image, dtype=np.uint8, copy=True), dtype=np.uint8, requirements=["C", "A", "W"])
+
+    rgb_image = np.array(pil_image, dtype=np.uint8, copy=True)
+    rgb_image = np.require(rgb_image, dtype=np.uint8, requirements=["C", "A", "W"])
+
+    if rgb_image.ndim != 3 or rgb_image.shape[2] != 3:
+        raise FaceAISetupError(
+            f"Unsupported normalized image shape: {rgb_image.shape}. Expected RGB image."
+        )
+
+    return rgb_image
+
+
+def _as_rgb_image(image_np):
+    return _as_dlib_rgb_image(image_np)
