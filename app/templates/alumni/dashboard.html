@@ -1,53 +1,70 @@
-{% extends "base_dashboard.html" %}
-{% block title %}Alumni Dashboard - Smart Campus{% endblock %}
-{% block page_heading %}Alumni Dashboard{% endblock %}
-{% block content %}
-<script>
-  tailwind = {
-    config: {
-      theme: {
-        extend: {
-          colors: {
-            navy: "#1E3A8A",
-            gold: "#F59E0B",
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alumni Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind = {
+        config: {
+          theme: {
+            extend: {
+              colors: {
+                navy: "#1E3A8A",
+                gold: "#F59E0B",
+              },
+              fontFamily: {
+                sans: ["Inter", "ui-sans-serif", "system-ui"],
+              },
+            },
           },
         },
-      },
-    },
-  };
-</script>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  .alumni-react-app,
-  .alumni-react-app * {
-    box-sizing: border-box;
-  }
+      };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
 
-  .alumni-react-app button {
-    min-height: auto;
-    box-shadow: none;
-    text-transform: none;
-  }
+      .alumni-react-app,
+      .alumni-react-app * {
+        box-sizing: border-box;
+      }
 
-  .alumni-react-app button:hover {
-    box-shadow: none;
-    transform: none;
-  }
+      .alumni-react-app button {
+        min-height: auto;
+        box-shadow: none;
+        text-transform: none;
+      }
 
-  .alumni-react-app input,
-  .alumni-react-app select,
-  .alumni-react-app textarea {
-    box-shadow: none;
-  }
-</style>
-<div
-  id="alumni-dashboard-root"
-  class="alumni-react-app"
-  data-user-name="{{ user.name }}"
-  data-user-email="{{ user.email }}"
-></div>
-{% endblock %}
+      .alumni-react-app button:hover {
+        box-shadow: none;
+        transform: none;
+      }
 
-{% block scripts %}
-<script type="module" src="/static/js/alumni-dashboard.js"></script>
-{% endblock %}
+      .alumni-react-app input,
+      .alumni-react-app select,
+      .alumni-react-app textarea {
+        box-shadow: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="alumni-dashboard-root"
+      class="alumni-react-app min-h-screen"
+      data-user-name="{{ user.name }}"
+      data-user-email="{{ user.email }}"
+    ></div>
+    <script type="module" src="/static/js/alumni-dashboard.js"></script>
+  </body>
+</html>

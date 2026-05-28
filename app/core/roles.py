@@ -54,8 +54,7 @@ ROLE_NAV = {
     ],
     ALUMNI: [
         NavItem("Overview", "/alumni/dashboard"),
-        NavItem("Student Connect", "/alumni/opportunities"),
-        NavItem("Chat/Guidance", "/alumni/opportunities?post_type=guidance"),
-        NavItem("Jobs/Internships", "/alumni/opportunities"),
+        NavItem("Chat/Guidance", "/alumni/dashboard"),
+        NavItem("Jobs/Internships", "/alumni/dashboard"),
     ],
 }
