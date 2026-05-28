@@ -37,6 +37,7 @@ import {
 
 const h = React.createElement;
 const storeKey = "smart-campus-advanced-alumni-profile";
+const mentorshipChatUrl = "http://127.0.0.1:5174";
 
 const skillOptions = ["React", "Python", "Product Management", "UI/UX", "Data Science", "Cloud", "Cybersecurity", "AI/ML"];
 const guidanceOptions = ["Mock Interviews", "Resume Review", "Career Counseling", "Hackathon Mentorship"];
@@ -521,7 +522,14 @@ function DashboardShell({ profile, children, active, setActive }) {
             h("button", {
               key,
               type: "button",
-              onClick: () => setActive(key),
+              onClick: () => {
+                if (key === "guidance") {
+                  const backUrl = `${window.location.origin}/alumni/dashboard`;
+                  window.location.href = `${mentorshipChatUrl}/?dashboard=alumni&back=${encodeURIComponent(backUrl)}`;
+                  return;
+                }
+                setActive(key);
+              },
               className: `flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold transition ${active === key ? "bg-[#F59E0B] text-white" : "text-blue-100 hover:bg-white/10 hover:text-white"}`,
               title: label,
             }, h(Icon, { size: 19 }), collapsed ? null : label),
@@ -1145,6 +1153,25 @@ function ChatGuidanceWorkspace() {
   );
 }
 
+function AlumniGuidanceLauncher() {
+  const backUrl = `${window.location.origin}/alumni/dashboard`;
+  return h("section", { className: "rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100" },
+    h("div", { className: "flex flex-wrap items-center justify-between gap-4" },
+      h("div", null,
+        h("p", { className: "mb-2 text-xs font-black uppercase text-[#F59E0B]" }, "Alumni Chat/Guidance"),
+        h("h3", { className: "text-2xl font-black text-slate-950" }, "Open alumni mentee chats"),
+        h("p", { className: "mt-2 max-w-2xl text-sm text-slate-500" }, "Manage named student conversations from the alumni chat workspace. Student pages stay separate; only the message thread is shared."),
+      ),
+      h(PrimaryButton, {
+        icon: MessageCircle,
+        onClick: () => {
+          window.location.href = `${mentorshipChatUrl}/?dashboard=alumni&back=${encodeURIComponent(backUrl)}`;
+        },
+      }, "Open Alumni Chats"),
+    ),
+  );
+}
+
 function ProfileMaintenance({ profile, setProfile }) {
   const [synced, setSynced] = useState(false);
   const set = (key) => (value) => setProfile((current) => ({ ...current, [key]: value }));
@@ -1197,7 +1224,7 @@ function MainDashboard({ profile, setProfile }) {
     overview: h(Overview, { profile, jobs, feed }),
     give: h(GiveBackPortal, { profile, jobs, setJobs }),
     content: h(ContentHub, { feed, setFeed }),
-    guidance: h(ChatGuidanceWorkspace),
+    guidance: h(AlumniGuidanceLauncher),
     profile: h(ProfileMaintenance, { profile, setProfile }),
   }[active];
 

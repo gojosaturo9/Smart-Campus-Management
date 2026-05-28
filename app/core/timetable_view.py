@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.core.roles import ADMIN, STUDENT, TEACHER
-from app.core.supabase_client import SupabaseError, eq, rest_select
+from app.core.supabase_client import SupabaseError, eq, is_configured, rest_select
 
 
 DAY_ORDER = {
@@ -55,6 +55,9 @@ class LatestTimetable:
 
 
 def latest_timetable_for_user(user: dict, day: str = "", run_id: str = "", branch: str = "", section: str = "") -> LatestTimetable:
+    if not is_configured():
+        return _empty("Timetable data is not configured yet.")
+
     try:
         runs = rest_select(
             "timetable_runs",

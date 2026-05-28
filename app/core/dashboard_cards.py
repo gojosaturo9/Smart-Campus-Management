@@ -13,6 +13,7 @@ class DashboardCard:
 
 ROLE_DASHBOARD_CARDS = {
     STUDENT: (
+        DashboardCard("Chats", "Mentors", "Open your student chats and mentorship roadmap.", "http://127.0.0.1:5174/?dashboard=student&back=http%3A%2F%2F127.0.0.1%3A9000%2Fstudent%2Fdashboard"),
         DashboardCard("Attendance", "Status", "Open your attendance portal and review subject records.", "/attendance"),
         DashboardCard("Timetable", "Today", "Review your latest class schedule.", "/timetable"),
         DashboardCard("Events", "Upcoming", "Track campus events and seminar updates.", "/events"),
@@ -32,7 +33,7 @@ ROLE_DASHBOARD_CARDS = {
     ),
     ALUMNI: (
         DashboardCard("Jobs", "Post", "Publish internships and job opportunities.", "/alumni/dashboard"),
-        DashboardCard("Chat/Guidance", "Mentor", "Respond to guidance requests and mentor active students.", "/alumni/dashboard"),
+        DashboardCard("Chat/Guidance", "Mentor", "Respond to guidance requests and mentor active students.", "http://127.0.0.1:5174/?dashboard=alumni"),
     ),
 }
 

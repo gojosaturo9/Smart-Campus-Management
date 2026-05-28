@@ -56,6 +56,9 @@ def root(request: Request):
 @router.get("/login")
 def login_page(request: Request, role: str = ""):
     selected_role = role if role in LOGIN_ROLES else ""
+    current_user = request.session.get("user")
+    if selected_role and current_user and current_user.get("role") == selected_role:
+        return RedirectResponse(ROLE_HOME[selected_role], status_code=303)
     return templates.TemplateResponse(
         "auth/login.html",
         {
