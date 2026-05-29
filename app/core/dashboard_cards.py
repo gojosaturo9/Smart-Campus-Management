@@ -34,8 +34,7 @@ ROLE_DASHBOARD_CARDS = {
     ),
     ALUMNI: (
         DashboardCard("Jobs", "Post", "Publish internships and job opportunities.", "/alumni/opportunities"),
-        DashboardCard("Guidance", "Requests", "Respond to student mentorship and career requests.", "/alumni/connect"),
-        DashboardCard("Messages", "Students", "Open student guidance conversations.", "/alumni/connect"),
+        DashboardCard("Student Connect", "Requests", "Respond to student mentorship requests and open guidance conversations.", "/alumni/connect"),
     ),
 }
 

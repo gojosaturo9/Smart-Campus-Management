@@ -24,7 +24,11 @@
 
       <nav class="nav-list">
         {% for item in role_nav[user.role] %}
-          <a href="{{ item.endpoint }}">{{ item.label }}</a>
+          <a href="{{ item.endpoint }}" 
+             {% if request.url.path == item.endpoint or (item.endpoint != '/' + user.role + '/dashboard' and request.url.path.startswith(item.endpoint)) %}class="active" aria-current="page"{% endif %}>
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label">{{ item.label }}</span>
+          </a>
         {% endfor %}
       </nav>
     </aside>
@@ -121,6 +125,49 @@
         <span class="loading-line short"></span>
       </div>
     </div>
+    {% set chatbot = chatbot_bootstrap(user.role) %}
+    <section class="ai-chatbot" data-ai-chatbot>
+      <button class="ai-chatbot-toggle" type="button" data-ai-chatbot-toggle aria-label="Open AI chatbot">
+        AI
+      </button>
+      <div class="ai-chatbot-panel" data-ai-chatbot-panel hidden>
+        <div class="ai-chatbot-head">
+          <div>
+            <strong>Smart Campus AI</strong>
+            <small>{{ role_labels[user.role] }} assistant</small>
+          </div>
+          <button type="button" data-ai-chatbot-close aria-label="Close AI chatbot">x</button>
+        </div>
+        <div class="ai-chatbot-tools">
+          <span data-ai-chatbot-status>Ready</span>
+          <button type="button" data-ai-chatbot-speak>Voice on</button>
+          <button type="button" data-ai-chatbot-clear>Clear</button>
+        </div>
+        <div class="ai-chatbot-messages" data-ai-chatbot-messages>
+          <article class="ai-chatbot-message bot">{{ chatbot.intro }}</article>
+        </div>
+        <div class="ai-chatbot-prompts" data-ai-chatbot-prompts></div>
+        <form class="ai-chatbot-form" data-ai-chatbot-form>
+          <div class="ai-chatbot-input-group">
+            <div class="voice-wave">
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+            </div>
+            <input name="message" type="text" placeholder="Ask Smart Campus AI" autocomplete="off">
+            <button type="button" class="ai-chatbot-mic-btn" data-ai-chatbot-mic aria-label="Voice input">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            </button>
+          </div>
+          <button type="submit" class="ai-chatbot-send-btn">Send</button>
+        </form>
+      </div>
+    </section>
+    <script>
+      window.chatbotBootstrap = {{ chatbot|tojson }};
+    </script>
     <div class="photo-adjust-modal" data-photo-adjust-modal hidden>
       <div class="photo-adjust-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-adjust-title">
         <div class="photo-adjust-head">
@@ -159,6 +206,8 @@
     <script src="/static/js/sidebar-drawer.js"></script>
     <script src="/static/js/summary-card-icons.js"></script>
     <script src="/static/js/profile-photo-adjust.js"></script>
+    <script src="/static/js/ai-chatbot.js"></script>
+    <script src="/static/js/toast-auto-fade.js"></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

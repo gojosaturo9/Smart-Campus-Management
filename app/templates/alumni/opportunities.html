@@ -91,12 +91,19 @@
           <p>{{ post.description or "No description added." }}</p>
           <small>
             {{ post.company or "Alumni post" }}
-            {% if post.expires_at %} · expires {{ post.expires_at }}{% endif %}
+            {% if post.expires_at %} · expires {{ post.expires_at|format_datetime }}{% endif %}
           </small>
         </div>
-        {% if post.apply_url %}
-          <a class="button-link" href="{{ post.apply_url }}" target="_blank" rel="noreferrer">Open</a>
-        {% endif %}
+        <div style="display: flex; gap: 10px; align-items: center;">
+          {% if post.apply_url %}
+            <a class="button-link" href="{{ post.apply_url }}" target="_blank" rel="noreferrer">Open</a>
+          {% endif %}
+          {% if user.role == 'admin' %}
+            <form method="post" action="/alumni/posts/{{ post.id }}/delete" style="margin: 0;">
+              <button class="secondary-button danger-button" type="submit" onclick="return confirm('Are you sure you want to delete this post?');">Delete</button>
+            </form>
+          {% endif %}
+        </div>
       </article>
     {% else %}
       <p class="muted">No alumni posts yet.</p>

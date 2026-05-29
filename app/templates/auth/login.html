@@ -1,48 +1,135 @@
 {% extends "base_public.html" %}
 {% block title %}Login - Smart Campus{% endblock %}
 {% block content %}
-<main class="portal-login-shell">
-  <section class="portal-hero">
-    <p class="eyebrow">Smart Campus</p>
-    <h1>Choose Your Portal</h1>
-    <p class="muted">Each role has a separate entry point for its dashboard and tools.</p>
-  </section>
+<main class="login-shell">
+  <!-- Interactive Animated Background -->
+  <div class="bg-scene">
+    <div class="bg-text-wrap">
+      <span class="bg-brand-text">Smart Campus</span>
+    </div>
+    <div class="bg-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+      <div class="shape shape-4"></div>
+    </div>
+    
+    <div class="floating-icons">
+      <div class="float-icon icon-1">🎓</div>
+      <div class="float-icon icon-2">📚</div>
+      <div class="float-icon icon-3">💻</div>
+      <div class="float-icon icon-4">✨</div>
+      <div class="float-icon icon-5">🏫</div>
+      <div class="float-icon icon-6">🔍</div>
+      <div class="float-icon icon-7">💡</div>
+      <div class="float-icon icon-8">🛰️</div>
+      <div class="float-icon icon-9">🧠</div>
+      <div class="float-icon icon-10">🌍</div>
+    </div>
+  </div>
 
-  <section class="role-entry-grid" aria-label="Role portals">
-    {% for role, item in roles.items() %}
-      <article class="role-entry-card {% if selected_role == role %}active{% endif %}">
-        <span>{{ role_labels[role] }}</span>
-        <strong>{{ item.title }}</strong>
-        <small>{{ item.description }}</small>
+  <div class="login-card glass-panel fade-in">
+    <div class="login-header">
+      <div class="brand-mark">SC</div>
+      <h1>Welcome Back</h1>
+      <p class="muted">Access your Smart Campus dashboard with premium features</p>
+    </div>
 
-        {% if error and selected_role == role %}
-          <div class="alert">{{ error }}</div>
-        {% endif %}
+    {% if error %}
+      <div class="alert fade-in">{{ error }}</div>
+    {% endif %}
 
-        <form method="post" action="/login" class="role-login-form">
-          <input name="role" type="hidden" value="{{ role }}">
-          <label>
-            Email
-            <input name="email" type="email" placeholder="{{ item.email }}" autocomplete="username" required>
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" placeholder="{{ item.password }}" autocomplete="current-password" required>
-          </label>
-          <button type="submit">{{ item.action }}</button>
-        </form>
-
-        <div class="role-card-links">
-          <small>{{ item.email }} / {{ item.password }}</small>
-          {% if item.face_login_url %}
-            <a class="button-link secondary-link" href="{{ item.face_login_url }}">Login with Face</a>
-          {% endif %}
-          {% if item.signup_url %}
-            <a class="inline-link" href="{{ item.signup_url }}">{{ item.signup_label }}</a>
-          {% endif %}
+    <form method="post" action="/login" class="unified-login-form">
+      <div class="input-group">
+        <div class="input-with-icon">
+          <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          <input id="email" name="email" type="email" placeholder="Enter your email" autocomplete="username" required>
         </div>
-      </article>
-    {% endfor %}
-  </section>
-</main>
-{% endblock %}
+      </div>
+
+      <div class="input-group">
+        <div class="input-with-icon">
+          <svg class="field-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="role">Select Your Portal</label>
+        <div class="input-with-icon">
+          <span class="field-icon" id="role-emoji">🎓</span>
+          <select id="role" name="role" required data-role-select>
+            {% for role_key, label in role_labels.items() %}
+              <option value="{{ role_key }}" {% if (selected_role or 'student') == role_key %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="submit-btn">Sign In to Dashboard</button>
+      </div>
+
+      <div class="extra-actions" data-student-only hidden>
+        <div class="divider"><span>OR</span></div>
+        <a class="face-login-btn" href="/attendance/face-login">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10L9.01 10M15 10L15.01 10M12 18C14.7614 18 17 15.7614 17 13H7C7 15.7614 9.23858 18 12 18Z"></path><circle cx="12" cy="12" r="10"></circle></svg>
+          Login with Face Recognition
+        </a>
+      </div>
+    </form>
+
+    <div class="login-footer" data-signup-container>
+      <!-- Links will be injected here by JS -->
+    </div>
+    </div>
+    </main>
+    {% endblock %}
+
+    {% block scripts %}
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+    const roleSelect = document.querySelector('[data-role-select]');
+    const studentExtras = document.querySelector('[data-student-only]');
+    const signupContainer = document.querySelector('[data-signup-container]');
+    const roleEmoji = document.getElementById('role-emoji');
+
+    const roleIcons = {
+      'student': '🎓',
+      'teacher': '👨‍🏫',
+      'admin': '🛡️',
+      'alumni': '🤝'
+    };
+
+    function updateUI(role) {
+      // Update icon
+      if (roleEmoji) roleEmoji.textContent = roleIcons[role] || '👤';
+
+      // Update student specific UI
+      if (role === 'student') {
+        studentExtras.hidden = false;
+        studentExtras.classList.add('fade-in');
+        signupContainer.innerHTML = '<p>Don\'t have an account? <a href="/attendance/signup" class="inline-link">Register as a new student</a></p>';
+      } else if (role === 'alumni') {
+        studentExtras.hidden = true;
+        studentExtras.classList.remove('fade-in');
+        signupContainer.innerHTML = '<p>Don\'t have an account? <a href="/alumni/signup" class="inline-link">Join as Alumni</a></p>';
+      } else {
+        studentExtras.hidden = true;
+        studentExtras.classList.remove('fade-in');
+        signupContainer.innerHTML = '<p class="muted">Contact admin for portal access</p>';
+      }
+    }
+
+    roleSelect.addEventListener('change', (e) => {
+      updateUI(e.target.value);
+    });
+
+    // Initial check
+    updateUI(roleSelect.value);
+    });
+    </script>
+    {% endblock %}
+

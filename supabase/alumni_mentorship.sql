@@ -44,8 +44,18 @@ create table if not exists public.alumni_mentorship_messages (
     sender_id uuid not null references public.profiles(id) on delete cascade,
     message text not null,
     created_at timestamptz not null default now(),
-    read_at timestamptz
+    read_at timestamptz,
+    attachment_filename text,
+    attachment_content_type text,
+    attachment_size bigint,
+    attachment_path text
 );
+
+alter table public.alumni_mentorship_messages
+add column if not exists attachment_filename text,
+add column if not exists attachment_content_type text,
+add column if not exists attachment_size bigint,
+add column if not exists attachment_path text;
 
 create table if not exists public.alumni_mentorship_notifications (
     id uuid primary key default gen_random_uuid(),

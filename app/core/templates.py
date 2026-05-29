@@ -2,6 +2,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
 from app.core.alumni_mentorship import notifications_for_user
+from app.core.chatbot import chatbot_bootstrap
 from app.core.roles import ROLE_LABELS, ROLE_NAV
 
 
@@ -22,4 +23,5 @@ templates = Jinja2Templates(directory=settings.templates_dir)
 templates.env.globals["role_labels"] = ROLE_LABELS
 templates.env.globals["role_nav"] = ROLE_NAV
 templates.env.globals["navbar_notifications"] = notifications_for_user
+templates.env.globals["chatbot_bootstrap"] = chatbot_bootstrap
 templates.env.filters["format_datetime"] = format_datetime

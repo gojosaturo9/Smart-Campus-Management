@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.core.supabase_client import SupabaseError, eq, rest_insert, rest_select
+from app.core.supabase_client import SupabaseError, eq, rest_insert, rest_select, rest_delete
 
 
 POST_COLUMNS = "id,alumni_id,post_type,title,description,company,apply_url,expires_at,created_at"
@@ -14,6 +14,14 @@ def list_alumni_posts(post_type: str = "") -> list[dict]:
         return rest_select("alumni_posts", query)
     except SupabaseError:
         return []
+
+
+def delete_alumni_post(post_id: str) -> tuple[bool, str]:
+    try:
+        rest_delete("alumni_posts", {"id": eq(post_id)})
+    except SupabaseError as exc:
+        return False, str(exc)
+    return True, "Post deleted successfully."
 
 
 def create_alumni_post(

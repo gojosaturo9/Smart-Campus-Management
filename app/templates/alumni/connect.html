@@ -36,22 +36,25 @@
 <section class="mentor-workspace" data-mentor-workspace>
   <aside class="mentor-sidebar">
     {% if user.role == "alumni" %}
+      <!-- Alumni Sidebar (Unchanged logic, premium styles applied via CSS) -->
       <div class="mentor-side-head">
         <h2>Mentorship Pipeline</h2>
         <p>Requests and active mentees</p>
       </div>
-      <div class="mentor-tabs" role="tablist" aria-label="Mentorship pipeline">
-        <button class="is-active" type="button" data-mentor-tab="requests">Requests</button>
-        <button type="button" data-mentor-tab="connections">Mentees</button>
+      <div class="mentor-tabs" role="tablist">
+        <button class="is-active" type="button" data-mentor-tab="requests">
+          <span>Requests</span>
+          <em class="tab-count">{{ workspace.requests|length }}</em>
+        </button>
+        <button type="button" data-mentor-tab="connections">
+          <span>Mentees</span>
+          <em class="tab-count">{{ workspace.connections|length }}</em>
+        </button>
       </div>
       <div class="mentor-list" data-mentor-panel="requests">
         {% for request_item in workspace.requests %}
           <article class="mentor-request">
-            <div>
-              <strong>{{ request_item.student.name or "Student" }}</strong>
-              <small>{{ request_item.student.email or "" }} | {{ request_item.created_at|format_datetime }}</small>
-            </div>
-            <span class="status-pill warning">{{ request_item.intent }}</span>
+            <strong>{{ request_item.student.name or "Student" }}</strong>
             <p>{{ request_item.message }}</p>
             <div class="button-row no-margin">
               <form method="post" action="/alumni/connect/requests/{{ request_item.id }}/accept">
@@ -63,121 +66,90 @@
             </div>
           </article>
         {% else %}
-          <p class="muted">No pending mentorship requests.</p>
+          <p class="muted p-4">No pending requests.</p>
         {% endfor %}
       </div>
       <div class="mentor-list is-hidden" data-mentor-panel="connections">
         {% for connection in workspace.connections %}
           <button class="mentor-person {% if connection.id == workspace.active_connection_id %}is-active{% endif %}" type="button" data-thread-id="{{ connection.id }}" data-person-name="{{ connection.peer.name or 'Student' }}">
-            <span class="mentor-avatar">{{ (connection.peer.initials or connection.peer.name[:1] or "S") }}</span>
+            <span class="mentor-avatar">{{ connection.peer.initials or "S" }}</span>
             <span>
-              <strong>{{ connection.peer.name or "Student" }}</strong>
+              <strong>{{ connection.peer.name }}</strong>
               <small>{{ connection.last_message }}</small>
-              <small>{{ connection.last_message_at|format_datetime }}</small>
             </span>
-            {% if connection.unread_count %}<em>{{ connection.unread_count }}</em>{% endif %}
-            <i aria-label="Active"></i>
           </button>
-        {% else %}
-          <p class="muted">Accept a request to create the first mentorship chat.</p>
         {% endfor %}
       </div>
     {% else %}
+      <!-- Student Sidebar (Refined Flow) -->
       <div class="mentor-side-head">
         <h2>My Mentors</h2>
-        <p>Connected alumni and guidance requests</p>
+        <p>Active mentorship connections</p>
       </div>
-      <div class="mentor-list">
+      
+      <div class="mentor-tabs" role="tablist">
+        <button class="is-active" type="button" data-mentor-tab="connections">My Mentors</button>
+        <button type="button" data-mentor-tab="directory">Find Alumni</button>
+      </div>
+
+      <!-- Active Connections List -->
+      <div class="mentor-list" data-mentor-panel="connections">
         {% for connection in workspace.connections %}
-          <button class="mentor-person {% if connection.id == workspace.active_connection_id %}is-active{% endif %}" type="button" data-thread-id="{{ connection.id }}" data-person-name="{{ connection.peer.name or 'Alumni mentor' }}">
-            <span class="mentor-avatar">{{ (connection.peer.initials or connection.peer.name[:1] or "A") }}</span>
+          <button class="mentor-person {% if connection.id == workspace.active_connection_id %}is-active{% endif %}" type="button" data-thread-id="{{ connection.id }}" data-person-name="{{ connection.peer.name or 'Alumni Mentor' }}">
+            <span class="mentor-avatar">{{ connection.peer.initials or "A" }}</span>
             <span>
-              <strong>{{ connection.peer.name or "Alumni mentor" }}</strong>
+              <strong>{{ connection.peer.name }}</strong>
               <small>{{ connection.last_message }}</small>
-              <small>{{ connection.last_message_at|format_datetime }}</small>
             </span>
             {% if connection.unread_count %}<em>{{ connection.unread_count }}</em>{% endif %}
-            <i aria-label="Active"></i>
           </button>
+        {% else %}
+          <div class="empty-state">
+            <p class="muted">No active mentors yet.</p>
+            <button class="inline-link" onclick="document.querySelector('[data-mentor-tab=\'directory\']').click()">Find an alumni mentor</button>
+          </div>
         {% endfor %}
       </div>
 
-      <div class="mentor-request-form">
-        <h3>Request a Mentor</h3>
-        {% if workspace.mentors %}
-          <form method="post" action="/alumni/connect/requests">
-            <label>
-              Alumni mentor
-              <select name="alumni_id" required>
-                {% for mentor in workspace.mentors %}
-                  <option value="{{ mentor.id }}">{{ mentor.name }}{% if mentor.job_title %} - {{ mentor.job_title }}{% endif %}{% if mentor.company %}, {{ mentor.company }}{% endif %}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <div class="mentor-card-grid">
-              {% for mentor in workspace.mentors %}
-                <article class="mentor-directory-card">
-                  <div class="mentor-card-head">
-                    <span class="mentor-avatar">{{ mentor.initials or mentor.name[:1] or "A" }}</span>
-                    <div>
-                      <strong>{{ mentor.name }}</strong>
-                      <small>{{ mentor.job_title or "Alumni Mentor" }}{% if mentor.company %} | {{ mentor.company }}{% endif %}</small>
-                    </div>
-                  </div>
-                  <p>{{ mentor.bio or "Available for student mentorship and career guidance." }}</p>
-                  <div class="mentor-card-tags">
-                    {% if mentor.graduation_year %}<span>Batch {{ mentor.graduation_year }}</span>{% endif %}
-                    {% if mentor.linkedin_url %}<a href="{{ mentor.linkedin_url }}" target="_blank" rel="noreferrer">LinkedIn</a>{% endif %}
-                  </div>
-                </article>
-              {% endfor %}
-            </div>
-            <label>
-              Intent
-              <select name="intent" required>
-                <option value="Resume Review">Resume Review</option>
-                <option value="Mock Interview">Mock Interview</option>
-                <option value="Career Guidance">Career Guidance</option>
-                <option value="Internship Search">Internship Search</option>
-              </select>
-            </label>
-            <label>
-              Message
-              <textarea name="message" rows="4" required placeholder="Explain what guidance you need."></textarea>
-            </label>
-            <button type="submit">Send Request</button>
-          </form>
-        {% else %}
-          <p class="muted">No active alumni mentors found. Create alumni users first from Admin User Management.</p>
-        {% endif %}
-      </div>
-
-      {% if workspace.requests %}
-        <div class="mentor-request-form request-status-board">
-          <h3>My Requests</h3>
-          <div class="mentor-tabs compact-tabs" role="tablist" aria-label="Request status">
-            <button class="is-active" type="button" data-request-tab="pending">Pending</button>
-            <button type="button" data-request-tab="accepted">Accepted</button>
-            <button type="button" data-request-tab="rejected">Rejected</button>
-          </div>
-          {% for status in ["pending", "accepted", "rejected"] %}
-            <div class="request-status-list {% if status != "pending" %}is-hidden{% endif %}" data-request-panel="{{ status }}">
-              {% for request_item in workspace.requests if request_item.status == status %}
-                <article class="mentor-mini-card">
-                  <div class="mentor-mini-head">
-                    <strong>{{ request_item.intent }}</strong>
-                    <span class="status-pill {{ request_item.status }}">{{ request_item.status_label }}</span>
-                  </div>
-                  <small>{{ request_item.alumni.name or "Alumni" }}{% if request_item.created_at %} | {{ request_item.created_at|format_datetime }}{% endif %}</small>
-                  <p>{{ request_item.message }}</p>
-                </article>
+      <!-- Directory View -->
+      <div class="mentor-list is-hidden" data-mentor-panel="directory">
+        <div class="directory-container">
+          {% for mentor in workspace.mentors %}
+            {% set is_connected = workspace.connections|selectattr("alumni_id", "equalto", mentor.id)|list|length > 0 %}
+            {% set has_pending = workspace.requests|selectattr("alumni_id", "equalto", mentor.id)|selectattr("status", "equalto", "pending")|list|length > 0 %}
+            
+            <article class="mentor-directory-card">
+              <div class="mentor-card-head">
+                <span class="mentor-avatar">{{ mentor.initials or "A" }}</span>
+                <div>
+                  <strong>{{ mentor.name }}</strong>
+                  <small>{{ mentor.job_title }}{% if mentor.company %} @ {{ mentor.company }}{% endif %}</small>
+                </div>
+              </div>
+              
+              {% if is_connected %}
+                <span class="status-badge online">Connected</span>
+              {% elif has_pending %}
+                <span class="status-badge warning">Request Pending</span>
               {% else %}
-                <p class="muted">No {{ status }} requests.</p>
-              {% endfor %}
-            </div>
+                <details class="request-details">
+                  <summary class="submit-btn small">Send Request</summary>
+                  <form method="post" action="/alumni/connect/requests" class="compact-request-form">
+                    <input type="hidden" name="alumni_id" value="{{ mentor.id }}">
+                    <select name="intent" required>
+                      <option value="Resume Review">Resume Review</option>
+                      <option value="Mock Interview">Mock Interview</option>
+                      <option value="Career Guidance">Career Guidance</option>
+                    </select>
+                    <textarea name="message" rows="2" placeholder="Briefly explain your need..." required></textarea>
+                    <button type="submit">Submit Request</button>
+                  </form>
+                </details>
+              {% endif %}
+            </article>
           {% endfor %}
         </div>
-      {% endif %}
+      </div>
     {% endif %}
   </aside>
 
@@ -193,7 +165,10 @@
           {% endif %}
         </h2>
       </div>
-      <span class="status-pill">Live Chat</span>
+      <div class="mentor-chat-actions">
+        <span class="status-pill">Live Chat</span>
+        <button class="secondary-button danger-button" type="button" data-clear-chat {% if not workspace.active_connection_id %}disabled{% endif %}>Clear chat</button>
+      </div>
     </div>
     <div class="mentor-messages" data-mentor-messages aria-live="polite"></div>
     <div class="mentor-quick-replies">
@@ -201,9 +176,14 @@
         <button type="button" data-quick-reply="{{ reply }}">{{ reply }}</button>
       {% endfor %}
     </div>
-    <form class="mentor-compose" method="post" action="/alumni/connect/messages" data-mentor-compose>
+    <form class="mentor-compose" method="post" action="/alumni/connect/messages" enctype="multipart/form-data" data-mentor-compose>
       <input name="connection_id" type="hidden" value="{{ workspace.active_connection_id }}" data-connection-input>
       <input name="message" type="text" placeholder="{% if workspace.active_connection_id %}Type a guidance message{% else %}No active chat yet{% endif %}" {% if not workspace.active_connection_id %}disabled{% endif %}>
+      <label class="attachment-button" title="Attach photo, PDF, DOCX, or document">
+        <span>Attach</span>
+        <input name="attachment" type="file" data-attachment-input {% if not workspace.active_connection_id %}disabled{% endif %}>
+      </label>
+      <small class="attachment-name" data-attachment-name></small>
       <button type="submit" {% if not workspace.active_connection_id %}disabled{% endif %}>Send</button>
     </form>
   </section>

@@ -1,0 +1,53 @@
+{% extends "base_dashboard.html" %}
+{% block title %}LearnMate Quiz Studio - Smart Campus{% endblock %}
+{% block page_heading %}LearnMate Quiz Studio{% endblock %}
+{% block content %}
+{% if error %}<div class="alert">{{ error }}</div>{% endif %}
+{% if success %}<div class="notice">{{ success }}</div>{% endif %}
+
+<section class="panel ats-workspace">
+  <div class="section-title">
+    <div>
+      <h2>Study Material</h2>
+      <p>Upload a PDF, DOCX, or Image to generate practice quizzes.</p>
+    </div>
+  </div>
+
+  <form method="post" action="/quiz/upload" enctype="multipart/form-data" class="ats-form">
+    <div class="form-grid">
+      <label>
+        Study Material
+        <input type="file" name="material" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp" required>
+      </label>
+    </div>
+    <div class="button-row">
+      <button type="submit">Upload and Process</button>
+      <a class="secondary-link" href="/student/dashboard">Back to Dashboard</a>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <h2>How it works</h2>
+    <p>focused practice for your exams.</p>
+  </div>
+  <div class="summary-grid compact-grid">
+    <article class="summary-card">
+      <span>1. Upload</span>
+      <strong>File</strong>
+      <small>PDF, DOCX or Images</small>
+    </article>
+    <article class="summary-card">
+      <span>2. Extract</span>
+      <strong>Chapters</strong>
+      <small>Automatic segmentation</small>
+    </article>
+    <article class="summary-card">
+      <span>3. Practice</span>
+      <strong>Quiz</strong>
+      <small>AI-generated questions</small>
+    </article>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Quiz Practice - Quiz Studio{% endblock %}
+{% block page_heading %}Quiz Practice{% endblock %}
+{% block content %}
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Chapter Quiz</h2>
+      <p>Test your knowledge on the selected chapter.</p>
+    </div>
+    <a class="secondary-link" href="/quiz">Exit</a>
+  </div>
+
+  <div id="quiz-container">
+    {% for q in quiz.questions %}
+      <article class="quiz-question panel" data-index="{{ loop.index0 }}">
+        <h3>Question {{ loop.index }}: {{ q.question }}</h3>
+        <div class="options-list">
+          {% for option in q.options %}
+            <label class="option-item">
+              <input type="radio" name="q{{ loop.index0 }}" value="{{ option }}">
+              <span>{{ option }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="feedback" style="display: none;">
+          <strong class="status"></strong>
+          <p class="explanation"></p>
+        </div>
+      </article>
+    {% endfor %}
+
+    <div class="button-row" id="quiz-actions">
+      <button type="button" id="submit-quiz">Submit Answers</button>
+      <button type="button" id="reset-quiz" class="secondary-button" style="display: none;">Try Again</button>
+    </div>
+
+    <div id="quiz-result" class="panel" style="display: none; margin-top: 20px; text-align: center; background: #fbfcf8;">
+      <h2 style="font-size: 24px;">Your Score: <span id="score-value">0</span>/{{ quiz.questions|length }}</h2>
+      <p id="score-message" style="margin-top: 10px;"></p>
+    </div>
+  </div>
+</section>
+
+<script>
+  const questions = {{ quiz.questions|tojson }};
+  const submitBtn = document.getElementById('submit-quiz');
+  const resetBtn = document.getElementById('reset-quiz');
+  const resultPanel = document.getElementById('quiz-result');
+  const scoreValue = document.getElementById('score-value');
+
+  submitBtn.addEventListener('click', () => {
+    let score = 0;
+    questions.forEach((q, index) => {
+      const selected = document.querySelector(`input[name="q${index}"]:checked`);
+      const feedback = document.querySelectorAll('.quiz-question')[index].querySelector('.feedback');
+      const status = feedback.querySelector('.status');
+      const explanation = feedback.querySelector('.explanation');
+      
+      feedback.style.display = 'block';
+      explanation.textContent = q.explanation;
+
+      if (selected) {
+        if (selected.value === q.answer) {
+          score++;
+          status.textContent = 'Correct!';
+          status.style.color = '#304c3a';
+          feedback.style.background = '#eef5ea';
+        } else {
+          status.textContent = 'Incorrect';
+          status.style.color = '#b42318';
+          feedback.style.background = '#fff1f0';
+        }
+      } else {
+        status.textContent = 'Not answered';
+        status.style.color = '#6b7280';
+        feedback.style.background = '#f1f5f9';
+      }
+    });
+
+    scoreValue.textContent = score;
+    resultPanel.style.display = 'block';
+    submitBtn.style.display = 'none';
+    resetBtn.style.display = 'inline-block';
+    
+    window.scrollTo({ top: resultPanel.offsetTop, behavior: 'smooth' });
+  });
+
+  resetBtn.addEventListener('click', () => {
+    location.reload();
+  });
+</script>
+{% endblock %}

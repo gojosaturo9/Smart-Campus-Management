@@ -13,6 +13,7 @@ ALL_ROLES = (STUDENT, TEACHER, ADMIN, ALUMNI)
 class NavItem:
     label: str
     endpoint: str
+    icon: str = "🔹"
 
 
 ROLE_HOME = {
@@ -31,37 +32,38 @@ ROLE_LABELS = {
 
 ROLE_NAV = {
     STUDENT: [
-        NavItem("Overview", "/student/dashboard"),
-        NavItem("Attendance", "/attendance"),
-        NavItem("Attendance Details", "/attendance/student/details"),
-        NavItem("ATS Resume Scorer", "/ats"),
-        NavItem("Events", "/events"),
-        NavItem("Timetable", "/timetable"),
-        NavItem("Alumni Connect", "/alumni/connect"),
-        NavItem("Alumni Opportunities", "/alumni/opportunities"),
+        NavItem("Overview", "/student/dashboard", "📊"),
+        NavItem("Attendance", "/attendance", "📝"),
+        NavItem("Attendance Details", "/attendance/student/details", "🔍"),
+        NavItem("ATS Resume Scorer", "/ats", "📄"),
+        NavItem("Quiz Practice", "/quiz", "🧠"),
+        NavItem("Events", "/events", "📅"),
+        NavItem("Timetable", "/timetable", "🕒"),
+        NavItem("Alumni Connect", "/alumni/connect", "🤝"),
+        NavItem("Alumni Opportunities", "/alumni/opportunities", "💼"),
     ],
     TEACHER: [
-        NavItem("Overview", "/teacher/dashboard"),
-        NavItem("My Teaching Profile", "/teacher/setup"),
-        NavItem("Attendance Portal", "/attendance"),
-        NavItem("Attendance History", "/attendance/teacher/history"),
-        NavItem("My Timetable", "/timetable"),
-        NavItem("Events", "/events"),
+        NavItem("Overview", "/teacher/dashboard", "📊"),
+        NavItem("My Teaching Profile", "/teacher/setup", "👤"),
+        NavItem("Attendance Portal", "/attendance", "📝"),
+        NavItem("Attendance History", "/attendance/teacher/history", "📜"),
+        NavItem("Quiz Practice", "/quiz", "🧠"),
+        NavItem("My Timetable", "/timetable", "🕒"),
+        NavItem("Events", "/events", "📅"),
     ],
     ADMIN: [
-        NavItem("Overview", "/admin/dashboard"),
-        NavItem("User Management", "/admin/users"),
-        NavItem("Analytics", "/admin/analytics"),
-        NavItem("Mentorship", "/admin/mentorship"),
-        NavItem("Attendance Analytics", "/attendance/admin/analytics"),
-        NavItem("Timetable", "/timetable"),
-        NavItem("Events/Seminars", "/events"),
-        NavItem("Alumni Posts", "/alumni/opportunities"),
+        NavItem("Overview", "/admin/dashboard", "📊"),
+        NavItem("User Management", "/admin/users", "👥"),
+        NavItem("Analytics", "/admin/analytics", "📈"),
+        NavItem("Mentorship", "/admin/mentorship", "🤝"),
+        NavItem("Attendance Analytics", "/attendance/admin/analytics", "📉"),
+        NavItem("Timetable", "/timetable", "🕒"),
+        NavItem("Events/Seminars", "/events", "📅"),
+        NavItem("Alumni Posts", "/alumni/opportunities", "💼"),
     ],
     ALUMNI: [
-        NavItem("Overview", "/alumni/dashboard"),
-        NavItem("Student Connect", "/alumni/connect"),
-        NavItem("Chat/Guidance", "/alumni/connect"),
-        NavItem("Jobs/Internships", "/alumni/opportunities"),
+        NavItem("Overview", "/alumni/dashboard", "📊"),
+        NavItem("Student Connect", "/alumni/connect", "🤝"),
+        NavItem("Jobs/Internships", "/alumni/opportunities", "💼"),
     ],
 }

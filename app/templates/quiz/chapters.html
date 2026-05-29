@@ -1,0 +1,61 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Chapters - Quiz Studio{% endblock %}
+{% block page_heading %}{{ doc.title }}{% endblock %}
+{% block content %}
+{% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Detected Chapters</h2>
+      <p>Select a chapter and configure your quiz settings.</p>
+    </div>
+    <a class="secondary-link" href="/quiz">Upload New</a>
+  </div>
+
+  <div class="table-wrap dashboard-table">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Chapter Title</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for chapter in chapters %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td><strong>{{ chapter.chapter_title or chapter.title }}</strong></td>
+            <td>
+              <form method="post" action="/quiz/chapters/{{ chapter.id }}/generate" class="inline-form">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <select name="difficulty" class="compact-select">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                  <input type="hidden" name="question_types" value="mcq">
+                  <button type="submit" class="inline-link">Generate Quiz</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+  .compact-select {
+    padding: 2px 5px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  .inline-form {
+    display: inline-block;
+  }
+</style>
+{% endblock %}

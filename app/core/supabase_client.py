@@ -137,6 +137,11 @@ def eq(value: str) -> str:
     return "eq." + quote(str(value), safe="")
 
 
+def in_(values: list[str] | tuple[str, ...] | set[str]) -> str:
+    encoded = ",".join(quote(str(value), safe="") for value in values)
+    return f"in.({encoded})"
+
+
 def _friendly_error(detail: str) -> str:
     try:
         parsed = json.loads(detail)

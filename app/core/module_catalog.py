@@ -112,14 +112,10 @@ MODULES = {
         name="AI Notes-to-Test Generator",
         description="Study-material upload and quiz generation module.",
         relative_path="Testmodule",
-        stack="FastAPI + frontend",
-        entry_hint="Run backend and frontend from module README",
+        stack="FastAPI integrated",
+        entry_hint="Open /quiz inside the platform",
         allowed_roles=("student", "teacher"),
-        url_env_key="NOTES_TEST_URL",
-        api_url_env_key="NOTES_TEST_API_URL",
-        api_health_path="/health",
-        command_env_key="NOTES_TEST_START_COMMAND",
-        api_command_env_key="NOTES_TEST_API_START_COMMAND",
+        platform_url="/quiz",
     ),
     "alumni-connect": ModuleInfo(
         key="alumni-connect",
@@ -143,7 +139,7 @@ PLACEHOLDER_MODULES = {
     "teacher-accounts": ("Teacher Account Management", ("admin",)),
     "analytics": ("Analytics", ("admin",)),
     "alumni-meetups": ("Alumni Meetups", ("admin",)),
-    "guidance": ("Chat/Guidance", ("alumni",)),
+    "guidance": ("Student Connect", ("alumni",)),
     "jobs": ("Jobs/Internships", ("alumni",)),
 }
 
