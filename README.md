@@ -1243,6 +1243,835 @@ Next start point:
 8. Mail setup is planned for later; configure SMTP only when ready.
 ```
 
+## Alumni-Student Feature Plan - Pending
+
+Requested on 2026-05-29:
+
+```text
+Bring only the Alumni-Student feature into the current platform.
+Do not disturb existing attendance, timetable, ATS, notes-to-test, auth, dashboard, or profile work.
+Do not merge the full Alumni-Student branch because it contains many unrelated platform changes.
+Updated requirement: the feature must run inside the same FastAPI platform server, not as a separate Vite/server process.
+```
+
+Source branch verified:
+
+```text
+Remote repo: https://github.com/gojosaturo9/Smart-Campus-Management.git
+Branch: Alumni-Student
+Latest commit: a754a6e Add standalone student and alumni chat dashboards
+Commit date: 2026-05-29 01:41:31 +0530
+```
+
+Remote branches seen:
+
+```text
+Alumni-Student
+master
+platform
+```
+
+Important safety decision:
+
+```text
+Do not run git merge origin/Alumni-Student.
+Do not checkout the branch over the current working tree unless the user explicitly asks.
+The current workspace already has unrelated modified/untracked module folders.
+Only copy or re-create the specific alumni-student feature files needed for integration.
+```
+
+Existing local working tree note from inspection:
+
+```text
+Current branch: master
+Already modified/untracked before alumni-student work:
+  AItimetable
+  TruePresence/AI-powered-attendance-platform
+  TruePresence/_face_liveness_ref
+  resume ats
+These must be treated as user/local work and should not be reverted or overwritten.
+```
+
+Feature found in `origin/Alumni-Student`:
+
+```text
+frontend/alma-setu-mentorship/
+  package.json
+  index.html
+  src/main.jsx
+  src/AlumniDashboard.jsx
+  src/StudentDashboard.jsx
+  src/mentorshipMockData.js
+  src/styles.css
+  tailwind.config.js
+  postcss.config.js
+```
+
+Standalone feature behavior:
+
+```text
+Student view:
+  Mentor directory
+  Connected alumni chat
+  Notifications
+  Mentorship roadmap/progress
+  Quick replies
+
+Alumni view:
+  Mentorship request pipeline
+  Active mentees
+  Student chat/guidance panel
+  Notifications
+  Milestone/progress controls
+```
+
+Standalone app stack:
+
+```text
+React 19
+Vite 7
+Tailwind CSS
+lucide-react
+Default dev URL: http://127.0.0.1:5174
+```
+
+Current platform alumni feature already present:
+
+```text
+Route: /alumni/opportunities
+Files:
+  platform/app/core/alumni.py
+  platform/app/routes/alumni.py
+  platform/app/templates/alumni/opportunities.html
+Data:
+  Supabase table public.alumni_posts
+Behavior:
+  Alumni can create job, internship, and guidance posts.
+  Students can browse and filter alumni posts.
+```
+
+### Alumni-Student Integration Phase 1 - Completed
+
+Goal:
+
+```text
+Add the alumni-student mentorship/chat UI to the current platform server without changing existing attendance, timetable, ATS, notes-to-test, auth, dashboard, or profile behavior.
+```
+
+Completed actions:
+
+- Ported the branch feature concept into FastAPI/Jinja/plain JS instead of adding a separate React/Vite server.
+- Added a same-server page at `/alumni/connect`.
+- Reused the existing platform session and RBAC.
+- Restricted the page to student and alumni roles.
+- Kept `/alumni/opportunities` unchanged for jobs, internships, and guidance posts.
+- Did not touch existing submodules.
+
+Expected result:
+
+```text
+Alumni-student mentorship UI runs inside the current platform server:
+http://127.0.0.1:9005/alumni/connect
+```
+
+Files added:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+```
+
+### Alumni-Student Integration Phase 2 - Completed
+
+Goal:
+
+```text
+Expose the alumni-student feature from student and alumni navigation/dashboard links while keeping existing opportunity posts available.
+```
+
+Completed actions:
+
+- Added Student sidebar `Alumni Connect` link to `/alumni/connect`.
+- Added Student sidebar `Alumni Opportunities` link to `/alumni/opportunities`.
+- Added Alumni sidebar `Student Connect` and `Chat/Guidance` links to `/alumni/connect`.
+- Updated Student dashboard cards:
+  - `Alumni Connect` opens `/alumni/connect`.
+  - `Alumni Jobs` opens `/alumni/opportunities`.
+- Updated Alumni dashboard cards:
+  - `Guidance` opens `/alumni/connect`.
+  - `Messages` opens `/alumni/connect`.
+- Keep `/alumni/opportunities` available for jobs/internships/guidance posts.
+- Restrict platform entry links to student and alumni roles.
+
+Expected result:
+
+```text
+Student and alumni users can open the mentorship/chat UI from the platform.
+Existing opportunity posts remain available at /alumni/opportunities.
+```
+
+Verification:
+
+```text
+Student login:
+  Dashboard shows alumni-student mentorship/chat link.
+  Existing student dashboard cards still work.
+  /alumni/opportunities still works.
+
+Alumni login:
+  Dashboard shows student connect/chat guidance link.
+  Existing alumni opportunity creation still works.
+
+Teacher/Admin:
+  No accidental access link is added unless intentionally configured.
+```
+
+Files updated:
+
+```text
+platform/app/routes/alumni.py
+platform/app/core/roles.py
+platform/app/core/dashboard_cards.py
+```
+
+### Alumni-Student Integration Phase 3 - Completed
+
+Goal:
+
+```text
+Make the alumni-student feature role-aware inside the platform shell.
+```
+
+Completed actions:
+
+- Student users see:
+  - Mentor directory
+  - Mentor chat
+  - Quick replies
+  - Read-only mentorship roadmap
+  - Notifications
+- Alumni users see:
+  - Mentorship request pipeline
+  - Mentee list
+  - Student chat
+  - Quick replies
+  - Editable milestone checkboxes
+  - Notifications
+- Chat send, quick replies, request accept, tabs, and thread switching work client-side for the first version.
+
+Expected result:
+
+```text
+Student users land directly in the student mentorship experience.
+Alumni users land directly in the alumni mentorship experience.
+```
+
+Files updated:
+
+```text
+platform/app/static/css/styles.css
+platform/app/static/js/alumni-connect.js
+platform/app/templates/alumni/connect.html
+```
+
+### Alumni-Student Integration Phase 4 - Completed
+
+Goal:
+
+```text
+Replace mock mentorship data with Supabase-backed requests, connections, chat messages, milestones, and notifications.
+```
+
+Implemented Supabase tables:
+
+```text
+alumni_mentorship_requests
+alumni_mentorship_connections
+alumni_mentorship_messages
+alumni_mentorship_milestones
+alumni_mentorship_notifications
+```
+
+Implemented backend behavior:
+
+- Student can request mentorship from an alumni profile.
+- Alumni can accept or reject requests.
+- Accepted connections get a shared chat thread.
+- Messages are stored in Supabase with sender role and timestamps.
+- Milestones are controlled by alumni and visible to the connected student.
+- Server-side RBAC must enforce:
+  - Student sees only their own mentorship requests, connections, messages, and milestones.
+  - Alumni sees only requests/connections/messages assigned to them.
+  - Admin access is not exposed in the UI unless explicitly requested later.
+
+Files added/updated:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/routes/alumni.py
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+platform/supabase/alumni_mentorship.sql
+platform/supabase/schema.sql
+```
+
+New route actions:
+
+```text
+GET  /alumni/connect
+GET  /alumni/connect/messages/{connection_id}
+POST /alumni/connect/requests
+POST /alumni/connect/requests/{request_id}/accept
+POST /alumni/connect/requests/{request_id}/reject
+POST /alumni/connect/messages
+POST /alumni/connect/messages.json
+POST /alumni/connect/milestones/{milestone_id}
+```
+
+Important Supabase setup step:
+
+```text
+Run platform/supabase/alumni_mentorship.sql in the Supabase SQL Editor on existing projects.
+For a fresh project, platform/supabase/schema.sql now also contains the Phase 4 mentorship tables and policies.
+```
+
+If the SQL has not been run yet, `/alumni/connect` stays on the same server and shows a setup warning instead of crashing.
+
+### Alumni-Student Verification - 2026-05-29
+
+Commands run:
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall app tests
+.\.venv\Scripts\python.exe -m pytest tests\test_rbac.py -q
+```
+
+Results:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+Targeted route smoke test:
+
+```text
+/alumni/connect as student -> 200 OK
+/alumni/connect as alumni -> 200 OK
+Template rendered "Alumni Student Connect" for both roles.
+```
+
+Additional Phase 4 smoke checks:
+
+```text
+/alumni/connect student mock workspace -> 200 OK, renders "Request a Mentor" and "Supabase-backed"
+/alumni/connect alumni mock workspace -> 200 OK, renders pending request actions and active connection id
+```
+
+Current behavior:
+
+```text
+Single-server URL:
+http://127.0.0.1:9005/alumni/connect
+
+No separate alumni-student Vite/React server is required.
+No npm install/build is required for this same-server implementation.
+Existing /alumni/opportunities remains available.
+```
+
+### Alumni-Student Chat Live Update - Completed
+
+Requested after Phase 4:
+
+```text
+Remove the limitation where student/alumni need to refresh the page to see new messages.
+```
+
+Implemented:
+
+- Message sending now uses AJAX through `POST /alumni/connect/messages.json`.
+- The chat form no longer reloads the page after sending a message.
+- Active chat polls `GET /alumni/connect/messages/{connection_id}` every 3.5 seconds.
+- New messages from the other user appear automatically while the page is open.
+- Supabase keys are not exposed to the browser; all reads/writes still go through FastAPI session/RBAC.
+- Existing non-JS form route `POST /alumni/connect/messages` remains as fallback.
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+GET /alumni/connect/messages/conn-id mocked API -> 200 OK
+POST /alumni/connect/messages.json mocked API -> 200 OK
+```
+
+### Alumni-Student Timestamp Display Fix - Completed
+
+Requested after live chat update:
+
+```text
+Raw ISO timestamps like 2026-05-29T04:34:43.159615+00:00 were unreadable under messages.
+Fix this wherever it appears in the alumni-student feature.
+```
+
+Implemented:
+
+- Added a Jinja `format_datetime` filter in `platform/app/core/templates.py`.
+- Formatted server-rendered mentorship request timestamps.
+- Formatted server-rendered notification timestamps.
+- Formatted student "My Requests" timestamps.
+- Formatted live chat message timestamps in `platform/app/static/js/alumni-connect.js`.
+
+Display now uses this style:
+
+```text
+29 May 2026, 04:34 AM
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+format_datetime("2026-05-29T04:34:43.159615+00:00") -> 29 May 2026, 04:34 AM
+```
+
+### Alumni Professionalization Phase 1 - Completed
+
+Requested after alumni-student chat:
+
+```text
+Make the alumni-student feature more professional, implement improvements one by one, and keep README progress updated.
+```
+
+Implemented first:
+
+- Public alumni mentor signup at `/alumni/signup`.
+- Login page Alumni card now links to `Apply as alumni mentor`.
+- Alumni signup collects:
+  - Full name
+  - Email/password
+  - Graduation year
+  - Current company
+  - Job title
+  - LinkedIn URL
+  - Mentor bio
+- Signup creates:
+  - Supabase Auth user
+  - `profiles` row with `role = alumni`
+  - inactive account requiring admin approval
+  - `alumni_profiles` row with professional details
+- Admin User Management now labels inactive alumni as `Pending Approval`.
+- Admin action button now says `Approve` for pending alumni.
+- Student mentor selector no longer exposes alumni email in the visible option text.
+- Student mentor directory now shows professional mentor cards:
+  - Name
+  - Job title
+  - Company
+  - Bio
+  - Graduation batch
+  - LinkedIn link when available
+
+Files updated:
+
+```text
+platform/app/auth/routes.py
+platform/app/core/users.py
+platform/app/core/alumni_mentorship.py
+platform/app/templates/auth/alumni_signup.html
+platform/app/templates/admin/users.html
+platform/app/templates/alumni/connect.html
+platform/app/static/css/styles.css
+```
+
+Current approval flow:
+
+```text
+1. Alumni opens /alumni/signup.
+2. Alumni submits mentor profile.
+3. Account is created as inactive.
+4. Admin opens /admin/users.
+5. Admin clicks Approve.
+6. Alumni can log in and appear in student mentor directory.
+```
+
+Next professionalization steps:
+
+```text
+1. Add request status tabs and cleaner chat list with last message/unread badges.
+2. Add milestone create/edit/delete with due dates.
+3. Add admin mentorship moderation dashboard.
+```
+
+### Alumni Professionalization Phase 2 - Completed
+
+Implemented:
+
+- Conversation rows no longer expose participant email addresses.
+- Student/alumni chat lists now show:
+  - Participant name
+  - Last message preview
+  - Last message time using the readable timestamp formatter
+  - Unread count badge when unread peer messages exist
+- Conversation list layout was adjusted for professional unread badges and active status.
+
+Files updated:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/templates/alumni/connect.html
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+### Alumni Professionalization Phase 3 - Completed
+
+Implemented:
+
+- Student request history now has status tabs:
+  - Pending
+  - Accepted
+  - Rejected
+- Each request card now shows:
+  - Intent
+  - Status badge
+  - Alumni mentor name
+  - Readable request time
+  - Original message
+- Empty request states are clearer per status.
+- Chat header no longer says `No active connection`; it now guides the student to start a mentorship request.
+- Disabled chat input now says `No active chat yet`.
+
+Files updated:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+### Alumni Professionalization Phase 4 - Completed
+
+Implemented:
+
+- Alumni roadmap milestones are now manageable instead of fixed-only.
+- Alumni can add a new milestone for the selected active mentorship connection.
+- Alumni can set a due date on a milestone.
+- Alumni can edit milestone title and due date.
+- Alumni can delete a milestone.
+- Alumni can still mark milestones complete/incomplete.
+- Student roadmap remains read-only and now shows due dates when available.
+
+Database change:
+
+```text
+public.alumni_mentorship_milestones.due_date date
+```
+
+Migration files updated:
+
+```text
+platform/supabase/alumni_mentorship.sql
+platform/supabase/schema.sql
+```
+
+Important:
+
+```text
+Run platform/supabase/alumni_mentorship.sql again in Supabase SQL Editor to add due_date on existing projects.
+The migration uses add column if not exists, so it is safe to run after the earlier Phase 4 SQL.
+```
+
+Files updated:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/routes/alumni.py
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+Compatibility fix:
+
+```text
+If the live Supabase project has not added alumni_mentorship_milestones.due_date yet,
+the roadmap page now falls back to the old milestone columns instead of crashing.
+Due-date save/display becomes active after running platform/supabase/alumni_mentorship.sql.
+```
+
+### Alumni Professionalization Final Phase - Completed
+
+Implemented the remaining professional polish phases:
+
+Admin mentorship moderation:
+
+- Added admin page at `/admin/mentorship`.
+- Added Admin sidebar link `Mentorship`.
+- Admin page shows:
+  - Pending alumni approvals
+  - Pending student mentorship requests
+  - Active student-alumni connections
+  - Recent mentorship message activity
+  - Summary metrics for requests, approvals, connections, and messages
+
+Read/unread status:
+
+- Added `POST /alumni/connect/messages/{connection_id}/read`.
+- Opening a chat now marks peer messages as read.
+- Polling new messages also marks them read.
+- Existing unread badges now reduce once messages are opened/read.
+
+Chat UX polish:
+
+- Message sending shows a small `Sending...` then `Sent` status.
+- Chat keeps AJAX send and polling behavior without page refresh.
+- Read receipt failures do not interrupt chat usage.
+
+UI cleanup:
+
+- Replaced user-facing technical label `Supabase-backed` with `Live Chat`.
+- Kept Supabase keys server-side; browser still talks only to FastAPI routes.
+
+Files updated:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/routes/admin.py
+platform/app/routes/alumni.py
+platform/app/core/roles.py
+platform/app/templates/admin/mentorship.html
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+### Mentorship Plan UI Refresh - Completed
+
+Requested after roadmap review:
+
+```text
+Rename and restructure the mentee roadmap because the old structure did not look clear/professional.
+```
+
+Implemented:
+
+- Renamed `Mentee Roadmap` / `My Roadmap` to `Mentorship Plan`.
+- Rewrote helper copy for alumni and student views.
+- Added progress summary with percent complete and completed/total count.
+- Reworked plan items into numbered action cards.
+- Student view is cleaner and read-only.
+- Alumni view has clearer complete checkbox, title edit, due date edit, save, and delete actions.
+- Empty states now explain what to do next.
+- Add form label changed from `New milestone` to `Action item`.
+
+Files updated:
+
+```text
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+### Mentorship Layout Fix - Completed
+
+Requested after UI review:
+
+```text
+Buttons/forms in the mentorship area were visually merging into each other.
+Copy the sidebar feel from the Alumni-Student branch.
+```
+
+Implemented:
+
+- Reworked the mentorship sidebar with branch-style section header:
+  - `Mentorship Pipeline` for alumni
+  - `My Mentors` for students
+- Adjusted the three-column workspace sizing to give the plan panel more room.
+- Conversation rows now use card-style sidebar behavior with truncation for long text.
+- Fixed invalid/nested plan form structure that could cause buttons to merge.
+- Changed editable plan items from cramped horizontal controls to stacked cards:
+  - top row with step number and complete checkbox
+  - title field
+  - due date field
+  - separate Save and Delete actions
+- Kept student plan view read-only and card-based.
+
+Files updated:
+
+```text
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app tests -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+### Mentorship Plan Removal - Completed
+
+Requested after mentorship plan review:
+
+```text
+Remove the Mentorship Plan completely from both alumni and student views.
+Tell the user if any database cleanup is needed.
+```
+
+Implemented:
+
+- Removed the Mentorship Plan panel from `/alumni/connect` for students and alumni.
+- Removed alumni milestone/action-item create, edit, delete, and complete routes.
+- Removed automatic default milestone creation when an alumni accepts a request.
+- Removed milestone reads from the mentorship workspace payload.
+- Removed milestone rendering and state handling from `alumni-connect.js`.
+- Updated the student dashboard card copy so it no longer mentions milestones.
+- Kept mentorship requests, connections, live chat, read/unread status, notifications, alumni signup, and admin moderation intact.
+- Updated Supabase schema files so fresh setups no longer create `alumni_mentorship_milestones`.
+
+Files updated:
+
+```text
+platform/app/core/alumni_mentorship.py
+platform/app/routes/alumni.py
+platform/app/templates/alumni/connect.html
+platform/app/static/js/alumni-connect.js
+platform/app/static/css/styles.css
+platform/app/core/dashboard_cards.py
+platform/supabase/alumni_mentorship.sql
+platform/supabase/schema.sql
+```
+
+Verification:
+
+```text
+compileall app -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+Database cleanup note:
+
+```sql
+drop table if exists public.alumni_mentorship_milestones cascade;
+```
+
+Run this only in the live Supabase SQL Editor if old milestone/plan data is no longer needed. The current app no longer reads or writes this table.
+
+### Global Mentorship Notifications Navbar - Completed
+
+Requested after plan removal:
+
+```text
+Remove notifications from the student/alumni mentorship page body, move them to the upper navbar as a bell icon, show notifications on click, add a delete option, make it available on every student/alumni page, and stretch the chat area into the freed space.
+```
+
+Implemented:
+
+- Student and alumni users now get a notification bell from `base_dashboard.html`, so it appears on every dashboard page that extends the base shell.
+- Clicking the bell opens a notification dropdown.
+- Each notification has a delete action.
+- Delete now uses the global route `POST /notifications/{notification_id}/delete`.
+- Delete is server-side, restricted to the signed-in notification owner, and redirects back to the current page.
+- Removed the right-side notification panel from the mentorship page body.
+- Changed the mentorship workspace from three columns to two columns.
+- Chat now stretches into the freed right-side space.
+- Chat workspace has a fixed responsive height and message overflow stays inside the message scroll area instead of growing the chat box.
+
+Files updated:
+
+```text
+platform/app/templates/base_dashboard.html
+platform/app/templates/alumni/connect.html
+platform/app/routes/alumni.py
+platform/app/routes/notifications.py
+platform/app/core/alumni_mentorship.py
+platform/app/core/templates.py
+platform/app/main.py
+platform/app/static/css/styles.css
+```
+
+Verification:
+
+```text
+compileall app -> passed
+pytest tests/test_rbac.py -> 3 passed
+```
+
+Still pending after Phase 4:
+
+```text
+Run the new Supabase SQL migration in the live Supabase project if it has not been run yet.
+After that, test the full real-user flow:
+  1. Student sends mentor request.
+  2. Alumni accepts request.
+  3. Student and alumni exchange messages.
+  4. Student sees notifications and chat updates.
+Realtime WebSocket/Supabase Realtime can be added later if needed; current implementation uses lightweight polling and read receipts.
+```
+
+### Alumni-Student Resume Point
+
+When the user asks to start the alumni-student feature work, begin here:
+
+```powershell
+cd C:\Users\anike\OneDrive\Desktop\SmartCampus
+git status --short --branch
+cd platform
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 9005
+```
+
+Then open:
+
+```text
+http://127.0.0.1:9005/alumni/connect
+```
+
+Next implementation step, only when requested:
+
+```text
+Optional polish: add read/unread indicators, message polling, attachment upload, and admin moderation.
+```
+
 ## Development Rules
 
 - Keep all new unified-platform work inside `platform/` unless instructed otherwise.

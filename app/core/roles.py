@@ -37,7 +37,8 @@ ROLE_NAV = {
         NavItem("ATS Resume Scorer", "/ats"),
         NavItem("Events", "/events"),
         NavItem("Timetable", "/timetable"),
-        NavItem("Alumni Connect", "/alumni/opportunities"),
+        NavItem("Alumni Connect", "/alumni/connect"),
+        NavItem("Alumni Opportunities", "/alumni/opportunities"),
     ],
     TEACHER: [
         NavItem("Overview", "/teacher/dashboard"),
@@ -51,6 +52,7 @@ ROLE_NAV = {
         NavItem("Overview", "/admin/dashboard"),
         NavItem("User Management", "/admin/users"),
         NavItem("Analytics", "/admin/analytics"),
+        NavItem("Mentorship", "/admin/mentorship"),
         NavItem("Attendance Analytics", "/attendance/admin/analytics"),
         NavItem("Timetable", "/timetable"),
         NavItem("Events/Seminars", "/events"),
@@ -58,8 +60,8 @@ ROLE_NAV = {
     ],
     ALUMNI: [
         NavItem("Overview", "/alumni/dashboard"),
-        NavItem("Student Connect", "/alumni/opportunities"),
-        NavItem("Chat/Guidance", "/alumni/opportunities?post_type=guidance"),
+        NavItem("Student Connect", "/alumni/connect"),
+        NavItem("Chat/Guidance", "/alumni/connect"),
         NavItem("Jobs/Internships", "/alumni/opportunities"),
     ],
 }

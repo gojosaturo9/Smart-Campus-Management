@@ -1,0 +1,120 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Mentorship - Smart Campus{% endblock %}
+{% block page_heading %}Mentorship{% endblock %}
+{% block content %}
+{% if overview.error %}
+  <div class="alert">{{ overview.error }}</div>
+{% endif %}
+
+<section class="summary-grid">
+  {% for metric in overview.metrics %}
+    <article class="summary-card">
+      <span>{{ metric.label }}</span>
+      <strong>{{ metric.value }}</strong>
+      <small>{{ metric.detail }}</small>
+    </article>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <div>
+      <h2>Pending Alumni Approvals</h2>
+      <p>Review alumni mentor accounts before they become visible to students.</p>
+    </div>
+    <a class="secondary-link" href="/admin/users?role=alumni">Open User Management</a>
+  </div>
+  <div class="table-wrap dashboard-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Requested</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for account in overview.pending_alumni %}
+          <tr>
+            <td>{{ account.name }}</td>
+            <td>{{ account.email }}</td>
+            <td>{{ account.created_at|format_datetime }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3">No alumni approvals pending.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <h2>Pending Student Requests</h2>
+    <p>Requests waiting for alumni response.</p>
+  </div>
+  <div class="event-list">
+    {% for item in overview.pending_requests %}
+      <article class="event-item">
+        <div>
+          <span class="eyebrow">{{ item.intent }}</span>
+          <h3>{{ item.student.name or "Student" }} -> {{ item.alumni.name or "Alumni" }}</h3>
+          <p>{{ item.message }}</p>
+          <small>{{ item.created_at|format_datetime }}</small>
+        </div>
+      </article>
+    {% else %}
+      <p class="muted">No pending mentorship requests.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <h2>Active Connections</h2>
+    <p>Current student-alumni mentorship relationships.</p>
+  </div>
+  <div class="table-wrap dashboard-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Alumni</th>
+          <th>Started</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for connection in overview.active_connections %}
+          <tr>
+            <td>{{ connection.student.name or "Student" }}</td>
+            <td>{{ connection.alumni.name or "Alumni" }}</td>
+            <td>{{ connection.created_at|format_datetime }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3">No active mentorship connections yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-title">
+    <h2>Recent Activity</h2>
+    <p>Latest mentorship messages by sender.</p>
+  </div>
+  <div class="event-list">
+    {% for message in overview.recent_messages %}
+      <article class="event-item">
+        <div>
+          <span class="eyebrow">{{ message.created_at|format_datetime }}</span>
+          <h3>{{ message.sender.name or "User" }}</h3>
+          <p>{{ message.message }}</p>
+        </div>
+      </article>
+    {% else %}
+      <p class="muted">No mentorship messages yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

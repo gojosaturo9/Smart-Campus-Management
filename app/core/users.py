@@ -124,6 +124,61 @@ def create_user(
     return True, "User created successfully."
 
 
+def create_alumni_signup(
+    *,
+    name: str,
+    email: str,
+    password: str,
+    graduation_year: str,
+    company: str,
+    job_title: str,
+    linkedin_url: str,
+    bio: str,
+) -> tuple[bool, str]:
+    if not name.strip() or not email.strip() or not password:
+        return False, "Name, email, and password are required."
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters."
+    if not graduation_year.strip().isdigit():
+        return False, "Graduation year must be a valid year."
+    if not company.strip() or not job_title.strip():
+        return False, "Company and job title are required."
+    if not is_configured():
+        return False, "Supabase is not configured."
+
+    clean_email = email.strip().lower()
+    clean_name = name.strip()
+    try:
+        auth_user = admin_create_auth_user(clean_email, password, clean_name, "alumni")
+        user_id = auth_user["id"]
+        rest_insert(
+            "profiles",
+            {
+                "id": user_id,
+                "full_name": clean_name,
+                "email": clean_email,
+                "role": "alumni",
+                "is_active": False,
+            },
+        )
+        rest_insert(
+            "alumni_profiles",
+            {
+                "profile_id": user_id,
+                "graduation_year": int(graduation_year.strip()),
+                "company": company.strip(),
+                "job_title": job_title.strip(),
+                "linkedin_url": linkedin_url.strip() or None,
+                "bio": bio.strip() or None,
+            },
+        )
+    except SupabaseError as exc:
+        return False, str(exc)
+    except KeyError:
+        return False, "Supabase did not return the new Auth user id."
+    return True, "Alumni signup submitted. Admin approval is required before login."
+
+
 def set_user_active(user_id: str, is_active: bool) -> None:
     rest_update("profiles", {"id": eq(str(user_id))}, {"is_active": bool(is_active)})
 

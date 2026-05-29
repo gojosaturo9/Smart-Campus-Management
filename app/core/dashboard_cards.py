@@ -17,7 +17,8 @@ ROLE_DASHBOARD_CARDS = {
         DashboardCard("ATS Resume Scorer", "Analyze", "Score your resume and compare it with job descriptions.", "/ats"),
         DashboardCard("Timetable", "Today", "Review your latest class schedule.", "/timetable"),
         DashboardCard("Events", "Upcoming", "Track campus events and seminar updates.", "/events"),
-        DashboardCard("Alumni", "Opportunities", "Find guidance, internships, and career connects.", "/alumni/opportunities"),
+        DashboardCard("Alumni Connect", "Mentors", "Chat with alumni mentors for guidance.", "/alumni/connect"),
+        DashboardCard("Alumni Jobs", "Opportunities", "Find alumni-posted jobs, internships, and guidance posts.", "/alumni/opportunities"),
     ),
     TEACHER: (
         DashboardCard("Attendance Portal", "Classes", "Open attendance capture and student records.", "/attendance"),
@@ -33,8 +34,8 @@ ROLE_DASHBOARD_CARDS = {
     ),
     ALUMNI: (
         DashboardCard("Jobs", "Post", "Publish internships and job opportunities.", "/alumni/opportunities"),
-        DashboardCard("Guidance", "Requests", "Respond to student guidance conversations.", "/alumni/opportunities?post_type=guidance"),
-        DashboardCard("Messages", "Students", "Open student connection placeholders.", "/alumni/opportunities"),
+        DashboardCard("Guidance", "Requests", "Respond to student mentorship and career requests.", "/alumni/connect"),
+        DashboardCard("Messages", "Students", "Open student guidance conversations.", "/alumni/connect"),
     ),
 }
 

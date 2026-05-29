@@ -1,0 +1,60 @@
+{% extends "base_public.html" %}
+{% block title %}Alumni Signup - Smart Campus{% endblock %}
+{% block content %}
+<main class="portal-login-shell signup-shell">
+  <section class="portal-hero">
+    <p class="eyebrow">Alumni Mentorship</p>
+    <h1>Apply as Alumni Mentor</h1>
+    <p class="muted">Create a mentor profile for student guidance, resume reviews, and career conversations. Admin approval is required before login.</p>
+  </section>
+
+  <section class="panel public-form-panel">
+    {% if created %}
+      <div class="notice">{{ created }}</div>
+      <p><a class="button-link" href="/login?role=alumni">Back to Alumni Login</a></p>
+    {% else %}
+      {% if error %}
+        <div class="alert">{{ error }}</div>
+      {% endif %}
+      <form class="event-form" method="post" action="/alumni/signup">
+        <label>
+          Full name
+          <input name="name" type="text" autocomplete="name" required>
+        </label>
+        <label>
+          Email
+          <input name="email" type="email" autocomplete="email" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" minlength="8" autocomplete="new-password" required>
+        </label>
+        <label>
+          Graduation year
+          <input name="graduation_year" type="number" min="1950" max="2100" required>
+        </label>
+        <label>
+          Current company
+          <input name="company" type="text" required>
+        </label>
+        <label>
+          Job title
+          <input name="job_title" type="text" required>
+        </label>
+        <label class="wide-field">
+          LinkedIn URL
+          <input name="linkedin_url" type="url" placeholder="https://www.linkedin.com/in/your-profile">
+        </label>
+        <label class="wide-field">
+          Mentor bio
+          <textarea name="bio" rows="4" placeholder="Briefly describe your expertise and how you can help students."></textarea>
+        </label>
+        <div class="button-row no-margin">
+          <button type="submit">Submit for Approval</button>
+          <a class="secondary-link" href="/login?role=alumni">Back to Login</a>
+        </div>
+      </form>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from app.auth.session import require_role
 from app.core.analytics import admin_analytics_cards
+from app.core.alumni_mentorship import admin_mentorship_overview
 from app.core.audit import audit_event
 from app.core.roles import ADMIN, ALL_ROLES
 from app.core.templates import templates
@@ -28,6 +29,21 @@ def analytics_page(
             "request": request,
             "user": user,
             "analytics_cards": admin_analytics_cards(),
+        },
+    )
+
+
+@router.get("/mentorship")
+def mentorship_page(
+    request: Request,
+    user=Depends(require_role(ADMIN)),
+):
+    return templates.TemplateResponse(
+        "admin/mentorship.html",
+        {
+            "request": request,
+            "user": user,
+            "overview": admin_mentorship_overview(),
         },
     )
 

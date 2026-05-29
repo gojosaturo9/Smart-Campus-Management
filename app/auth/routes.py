@@ -6,7 +6,7 @@ from app.core.audit import audit_event
 from app.core.module_autostart import autostart_modules_for_role
 from app.core.roles import ADMIN, ALUMNI, ROLE_HOME, ROLE_LABELS, STUDENT, TEACHER
 from app.core.templates import templates
-from app.core.users import authenticate_user
+from app.core.users import authenticate_user, create_alumni_signup
 
 router = APIRouter()
 
@@ -41,6 +41,8 @@ LOGIN_ROLES = {
         "email": "alumni@campus.local",
         "password": "Alumni@123",
         "action": "Enter Alumni Portal",
+        "signup_url": "/alumni/signup",
+        "signup_label": "Apply as alumni mentor",
     },
 }
 
@@ -123,6 +125,50 @@ def login(
     if started:
         audit_event("modules.autostart", user=user, request=request, started=started)
     return RedirectResponse(ROLE_HOME[user["role"]], status_code=303)
+
+
+@router.get("/alumni/signup")
+def alumni_signup_page(request: Request):
+    return templates.TemplateResponse(
+        "auth/alumni_signup.html",
+        {"request": request, "error": "", "created": ""},
+    )
+
+
+@router.post("/alumni/signup")
+def alumni_signup_action(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    graduation_year: str = Form(...),
+    company: str = Form(...),
+    job_title: str = Form(...),
+    linkedin_url: str = Form(""),
+    bio: str = Form(""),
+):
+    ok, message = create_alumni_signup(
+        name=name,
+        email=email,
+        password=password,
+        graduation_year=graduation_year,
+        company=company,
+        job_title=job_title,
+        linkedin_url=linkedin_url,
+        bio=bio,
+    )
+    audit_event(
+        "auth.alumni_signup",
+        request=request,
+        email=email.strip().lower(),
+        ok=ok,
+        message=message,
+    )
+    return templates.TemplateResponse(
+        "auth/alumni_signup.html",
+        {"request": request, "error": "" if ok else message, "created": message if ok else ""},
+        status_code=200 if ok else 400,
+    )
 
 
 @router.post("/logout")
