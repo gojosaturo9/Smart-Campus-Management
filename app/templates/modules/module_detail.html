@@ -1,0 +1,48 @@
+{% extends "base_dashboard.html" %}
+{% block title %}{{ module.name }} - Smart Campus{% endblock %}
+{% block page_heading %}{{ module.name }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="section-title">
+    <h2>{{ module.name }}</h2>
+    <p>{{ module.description }}</p>
+  </div>
+
+  <dl class="detail-list">
+    <div>
+      <dt>Status</dt>
+      <dd>{% if module.exists %}Detected in workspace{% else %}Folder not found{% endif %}</dd>
+    </div>
+    <div>
+      <dt>Health</dt>
+      <dd>{{ module.health }}</dd>
+    </div>
+    <div>
+      <dt>Launch URL</dt>
+      <dd>
+        {% if module.launch_url %}
+          <a class="inline-link" href="{{ module.launch_url }}" target="_blank" rel="noreferrer">{{ module.launch_url }}</a>
+        {% else %}
+          Not configured
+        {% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Path</dt>
+      <dd>{{ module.path }}</dd>
+    </div>
+    <div>
+      <dt>Stack</dt>
+      <dd>{{ module.stack }}</dd>
+    </div>
+    <div>
+      <dt>Run hint</dt>
+      <dd>{{ module.entry_hint }}</dd>
+    </div>
+  </dl>
+
+  {% if module.launch_url %}
+    <a class="button-link" href="{{ module.launch_url }}" target="_blank" rel="noreferrer">Open Module</a>
+  {% endif %}
+</section>
+{% endblock %}
